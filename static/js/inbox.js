@@ -131,10 +131,20 @@ function view_email(email_id, mailbox) {
                         <strong>From:</strong> <strong><span class='text-info'>${email.sender}</span></strong> &nbsp; |  &nbsp; <strong>To: </strong> <strong><span class='text-info'>${email.recipients}</span></strong> &nbsp; |  &nbsp; <strong>Date:</strong> ${email.timestamp} 
                         <br>
                     </p>
-                    <p class='card-text'>
+                    <div class='card-text'>
                         <strong>Message:</strong> <br>
-                        ${email.body}
-                    </p>
+                        <div class='text-center d-flex flex-column gap-4'>
+                            <p>
+                            ${email.sender} has sent you a protected message. Please click the button below to view the message.
+                            </p>
+                            <i class='fas fa-lock'></i>
+                            <div>
+                                <a href='#' class='btn btn-primary'>
+                                    Read the message
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;

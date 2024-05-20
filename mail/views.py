@@ -1,4 +1,5 @@
 import json
+import gnupg
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
@@ -6,9 +7,10 @@ from django.http import JsonResponse
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from .utils import encrypt_message, decrypt_message
+from .models import User, Email, PGPKey, UserPublicKey, EmailPublicKey
 
-from .models import User, Email
-
+gpg = gnupg.GPG()
 
 def index(request):
     # Authenticated users view their inbox
@@ -87,11 +89,12 @@ def compose(request):
             'error': 'At least one recipient required.'
         }, status=400)
 
+
     # Convert email addresses to users
     recipients = []
     for email in emails:
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(email=email)    
             recipients.append(user)
         except User.DoesNotExist:
             return JsonResponse({
@@ -101,23 +104,44 @@ def compose(request):
     # Get contents of email
     subject = data.get('subject', '')
     body = data.get('body', '')
+    is_encrypt = data.get('is_encrypt', False)
+    
+    encrypted_bodies = {}
+    if is_encrypt:
+        for user in recipients:
+            try:
+                pgp_key = PGPKey.objects.get(user=user)
+                encrypt_body = encrypt_message(body, pgp_key.public_key)
+                if encrypt_body == ValueError:
+                    return JsonResponse({'error': f'Failed to encrypt message for user {user.email}.'}, status=400)
+                
+                encrypted_bodies[user] = encrypt_body
 
-    # Create one email for each recipient, plus sender
-    users = set()
-    users.add(request.user)
-    users.update(recipients)
-    for user in users:
+            except PGPKey.DoesNotExist:
+                return JsonResponse({'error': f'PGP key for user {user.email} not found.'}, status=400)
+
+    # Create and save email objects
+    all_users = set(recipients)
+    all_users.add(request.user)
+    
+    emails_to_save = []
+    for user in all_users:
+        email_body = encrypted_bodies[user] if is_encrypt and user in encrypted_bodies else body
         email = Email(
             user=user,
             sender=request.user,
             subject=subject,
-            body=body,
-            read=user == request.user
+            body=email_body,
+            read=(user == request.user)
         )
-        email.save()
-        for recipient in recipients:
-            email.recipients.add(recipient)
-        email.save()
+        emails_to_save.append(email)
+    
+    # Bulk create emails
+    Email.objects.bulk_create(emails_to_save)
+    
+    # Create recipient relationships
+    for email in emails_to_save:
+        email.recipients.set(recipients)
 
     return JsonResponse({'message': 'Email sent successfully.'}, status=201)
 
@@ -158,6 +182,14 @@ def email(request, email_id):
 
     # Return email contents
     if request.method == 'GET':
+        # Decrypt email body if encrypted
+        if email.encrypted:
+            try:
+                pgp_key = PGPKey.objects.get(user=request.user)
+                email.body = decrypt_message(email.body, pgp_key.private_key, pgp_key.passphrase)
+            except PGPKey.DoesNotExist:
+                return JsonResponse({'error': 'PGP key not found.'}, status=400)
+                    
         return JsonResponse(email.serialize())
 
     # Update whether email is read or should be archived
@@ -174,4 +206,21 @@ def email(request, email_id):
     else:
         return JsonResponse({
             'error': 'GET or PUT request required.'
+        }, status=400)
+
+
+@csrf_exempt
+@login_required
+def manage_pgp(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user = request.user
+        user.pgp_key = data.get('pgp_key')
+        user.save()
+        return JsonResponse({'message': 'PGP key saved successfully.'}, status=201)
+    elif request.method == 'GET':
+        return JsonResponse({'pgp_key': request.user.pgp_key})
+    else:
+        return JsonResponse({
+            'error': 'GET or POST request required.'
         }, status=400)
