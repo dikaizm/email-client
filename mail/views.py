@@ -104,21 +104,23 @@ def compose(request):
     # Get contents of email
     subject = data.get('subject', '')
     body = data.get('body', '')
-    is_encrypt = data.get('is_encrypt', False)
+    is_encrypt = data.get('encrypt', False)
     
     encrypted_bodies = {}
     if is_encrypt:
         for user in recipients:
             try:
                 pgp_key = PGPKey.objects.get(user=user)
-                encrypt_body = encrypt_message(body, pgp_key.public_key)
-                if encrypt_body == ValueError:
-                    return JsonResponse({'error': f'Failed to encrypt message for user {user.email}.'}, status=400)
-                
-                encrypted_bodies[user] = encrypt_body
-
             except PGPKey.DoesNotExist:
-                return JsonResponse({'error': f'PGP key for user {user.email} not found.'}, status=400)
+                return JsonResponse({'error': f'PGP key for user {user.email} not found!'}, status=400)
+            
+            try:
+                encrypt_body = encrypt_message(body, pgp_key.public_key)
+            except ValueError:
+                return JsonResponse({'error': f'Failed to encrypt message for user {user.email}.'}, status=400)
+
+            encrypted_bodies[user] = encrypt_body
+
 
     # Create and save email objects
     all_users = set(recipients)
@@ -182,14 +184,10 @@ def email(request, email_id):
 
     # Return email contents
     if request.method == 'GET':
-        # Decrypt email body if encrypted
+        # Hide email body if email is encrypted
         if email.encrypted:
-            try:
-                pgp_key = PGPKey.objects.get(user=request.user)
-                email.body = decrypt_message(email.body, pgp_key.private_key, pgp_key.passphrase)
-            except PGPKey.DoesNotExist:
-                return JsonResponse({'error': 'PGP key not found.'}, status=400)
-                    
+            email.body = ''
+        
         return JsonResponse(email.serialize())
 
     # Update whether email is read or should be archived
@@ -206,6 +204,35 @@ def email(request, email_id):
     else:
         return JsonResponse({
             'error': 'GET or PUT request required.'
+        }, status=400)
+
+
+@csrf_exempt
+@login_required
+def decrypt(request, email_id):
+    
+    try:
+        email = Email.objects.get(user=request.user, pk=email_id)
+    except:
+        return JsonResponse({'error': 'Email not found.'}, status=404)
+    
+    if request.method == 'GET':
+        if not email.encrypted:
+            return JsonResponse({'error': 'Email is not encrypted.'}, status=400)
+        
+        try:
+            pgp_key = PGPKey.objects.get(user=request.user)
+            decrypted_body = decrypt_message(email.body, pgp_key.private_key, pgp_key.passphrase)
+            if decrypted_body == ValueError:
+                return JsonResponse({'error': 'Failed to decrypt message.'}, status=400)
+            
+            return JsonResponse({'decrypted_body': decrypted_body})
+        except PGPKey.DoesNotExist:
+            return JsonResponse({'error': 'PGP key not found.'}, status=400)
+    
+    else:
+        return JsonResponse({
+            'error': 'GET request required.'
         }, status=400)
 
 
