@@ -35,10 +35,16 @@ class Email(models.Model):
 
 class PGPKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pgp_keys')
+    # key_id = models.CharField(max_length=255, db_index=True, unique=True, null=True, blank=True)
+    key_id = models.CharField(max_length=255, db_index=True, unique=True)
     private_key = models.TextField()
     public_key = models.TextField()
+    key_size = models.IntegerField(default=0)
+    encrypt = models.BooleanField(default=False)
+    sign = models.BooleanField(default=False)
     passphrase = models.CharField(max_length=255)
     expire_date = models.DateTimeField(db_index=True)
+    default_key = models.BooleanField(default=False)
     created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -47,12 +53,28 @@ class PGPKey(models.Model):
     def is_expired(self):
         return self.expire_date < timezone.now()
 
-    def serialize(self):
+    def serialize_detail(self):
         return {
-            'private_key': self.private_key,
-            'public_key': self.public_key,
-            'passphrase': self.passphrase,
+            'key_id': self.key_id,
+            'private_key': getattr(self, 'private_key', None),
+            'public_key': getattr(self, 'public_key', None),
+            'key_size': getattr(self, 'key_size', None),
+            'encrypt': getattr(self, 'encrypt', None),
+            'sign': getattr(self, 'sign', None),
+            'passphrase': getattr(self, 'passphrase', None),
             'expire_date': self.expire_date.strftime('%b %d %Y, %I:%M %p'),
+            'default_key': self.default_key,
+            'created': self.created.strftime('%b %d %Y, %I:%M %p')
+        }
+        
+    def serialize_public(self):
+        return {
+            'key_id': self.key_id,
+            'key_size': getattr(self, 'key_size', None),
+            'encrypt': getattr(self, 'encrypt', None),
+            'sign': getattr(self, 'sign', None),
+            'expire_date': self.expire_date.strftime('%b %d %Y, %I:%M %p'),
+            'default_key': self.default_key,
             'created': self.created.strftime('%b %d %Y, %I:%M %p')
         }
         

@@ -24,6 +24,21 @@ function compose_email() {
     document.querySelector('#compose-subject').value = '';
     document.querySelector('#compose-body').value = '';
     document.querySelector('#compose-encrypt').checked = false;
+    document.querySelector('#compose-sign').checked = false;
+
+    // Show passphrase input if sign is checked
+    document.querySelector('#compose-sign').addEventListener('change', () => {
+        const passphraseInput = document.querySelector('#passphrase-input');
+        const passphraseInner = `
+            <input type='password' id='compose-passphrase' class='form-control' placeholder='Your key passphrase'>
+        `
+
+        if (document.querySelector('#compose-sign').checked) {
+            passphraseInput.innerHTML = passphraseInner;
+        } else {
+            passphraseInput.innerHTML = '';
+        }
+    });
 }
 
 
@@ -50,42 +65,56 @@ function load_security() {
     // My PGP key pair
     const myPgpKey = document.createElement('div')
     myPgpKey.style.marginTop = '2rem';
-    myPgpKey.innerHTML = `
+
+    const myPgpKeyHeader = document.createElement('div')
+    myPgpKeyHeader.innerHTML = `
+        <h5>My Keys</h5>
         <div>
-            <h5>My Keys</h5>
-            <div>
-                <button type='button' class='btn btn-primary' id='btn-generate-key-form'>
-                    <i class='fas fa-plus'></i> Generate a new key pair
-                </button>
-            </div>
-            <table class='table table-hover table-dark mt-3'>
-                <thead>
-                    <tr>
-                        <th scope="col">#</th>
-                        <th scope="col">Public Key</th>
-                        <th scope="col">Private Key</th>
-                        <th scope="col">Expire</th>
-                        <th scope="col">Created</th>
-                        <th scope="col">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <th scope="row">1</th>
-                        <td>ankoaidjoajd-12kj1kkad</td>
-                        <td>asdknahdojaojd0-donanod</td>
-                        <td>12 July 2024</td>
-                        <td>12 July 2021</td>
-                        <td>
-                            <a href='#' class='btn btn-danger'>
-                                <i class='fas fa-trash'></i> Delete
-                            </a>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <button type='button' class='btn btn-primary' id='btn-generate-key-form'>
+                <i class='fas fa-plus'></i> Generate a new key pair
+            </button>
         </div>
-    `;
+    `
+
+    myPgpKey.appendChild(myPgpKeyHeader)
+
+    // GET /security/keys
+    fetch('/api/security/keys', {
+        method: 'GET',
+    })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                const errorMsg = document.createElement('span')
+                errorMsg.textContent = result.error
+                myPgpKey.appendChild(errorMsg)
+                return
+            }
+
+            const myPgpKeyTable = document.createElement('div')
+            myPgpKeyTable.innerHTML = `
+                <table class='table table-hover table-dark mt-3'>
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Key ID</th>
+                            <th scope="col">Expire</th>
+                            <th scope="col">Encrypt</th>
+                            <th scope="col">Sign</th>
+                            <th scope="col">Key Size</th>
+                            <th scope="col">Created</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${user_keys_table(result)}
+                    </tbody>
+                </table>
+            `;
+
+            myPgpKey.appendChild(myPgpKeyTable);
+            click_user_key_item();
+        });
 
     pageView.appendChild(myPgpKey);
 
@@ -160,6 +189,135 @@ function load_security() {
 }
 
 
+function click_user_key_item() {
+    document.querySelectorAll('.btn-user-key-detail').forEach(button => {
+        button.addEventListener('click', function () {
+            const keyId = this.getAttribute('data-key-id');
+            fetch(`/api/security/keys/${keyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    user_key_detail(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching key details:', error);
+                });
+        });
+    });
+
+    document.querySelectorAll('.btn-user-key-delete').forEach(button => {
+        button.addEventListener('click', function () {
+            const keyId = this.getAttribute('data-key-id');
+            fetch(`/api/security/keys/${keyId}`, { method: 'DELETE' })
+                .then(response => {
+                    if (response.ok) {
+                        const securityView = document.querySelector('#security-view');
+                        securityView.innerHTML = '';
+                        load_security();
+                    } else {
+                        console.error('Failed to delete key');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting key:', error);
+                });
+        });
+    });
+}
+
+
+function user_keys_table(data) {
+    const tableRows = data.map((item, index) => {
+        return `
+            <tr>
+                <th scope="row">${index + 1}</th>
+                <td class="w-30 text-break">
+                    ${item.default_key ?
+                `<span class='badge bg-primary'>Default</span>`
+                : ``
+            }
+                    <p>${item.key_id}</p>
+                </td>
+                <td>${item.expire_date}</td>
+                <td><span class='badge ${item.encrypt ? 'bg-success' : 'bg-danger'}'>${capitalize_first_letter(`${item.encrypt}`)}</span></td>
+                <td><span class='badge ${item.sign ? 'bg-success' : 'bg-danger'}'>${capitalize_first_letter(`${item.sign}`)}</span></td>
+                <td>${item.key_size}</td>
+                <td>${item.created}</td>
+                <td>
+                    <button type='button' class='btn btn-primary btn-user-key-detail' data-key-id='${item.key_id}' title='detail'>
+                        <i class='fas fa-eye'></i>
+                    </button>
+                    <button type='button' class='btn btn-danger btn-user-key-delete' data-key-id='${item.key_id}' title='delete'>
+                        <i class='fas fa-trash'></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    return tableRows
+}
+
+
+/**
+ * 
+ * @param data {key_id, private_key, public_key, expire_date, encrypt, sign, key_size, passphrase, default_key, created}
+ */
+function user_key_detail(data) {
+    const securityView = document.querySelector('#security-view');
+    securityView.innerHTML = '';
+
+    function key_mapper(key) {
+        const keyMap = {
+            'key_id': 'Key ID',
+            'private_key': 'Private Key',
+            'public_key': 'Public Key',
+            'expire_date': 'Expire Date',
+            'encrypt': 'Encrypt',
+            'sign': 'Sign',
+            'key_size': 'Key Size',
+            'passphrase': 'Passphrase',
+            'default_key': 'Default Key',
+            'created': 'Created'
+        };
+    
+        return keyMap[key] || key;
+    }
+
+    function key_detail_rows() {
+        objToArr = Object.entries(data).map(([key, value]) => {
+            return { key: key, value: value }
+        })
+
+        return objToArr.map(item => {
+            return `
+                <tr>
+                    <td scope="row">${key_mapper(item.key)}</td>
+                    <td>${item.value}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    const div = document.createElement('div')
+    div.innerHTML = `
+        <h3 class='mb-4'>Key Details</h3>
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th scope="col">Description</th>
+                    <th scope="col">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${key_detail_rows()}
+            </tbody>
+        </table>
+    `;
+
+    securityView.appendChild(div);
+}
+
+
 function form_generate_key() {
     const securityView = document.querySelector('#security-view')
     securityView.innerHTML = ''
@@ -174,7 +332,6 @@ function form_generate_key() {
                     <select id='generate-key-type' class="form-select">
                         <option selected value='RSA'>RSA</option>
                         <option value="DSA">DSA</option>
-                        <option value="ECDSA">ECDSA</option>
                     </select>
                 </div>
             </div>
@@ -182,7 +339,7 @@ function form_generate_key() {
                 <label for='generate-key-size' class='col-sm-2 col-form-label'>Key Size</label>
                 <div class='col-sm-10'>
                     <input id='generate-key-size' class='form-control' value='2048'>
-                    <span class='text-muted'>Example: 1024, 2048, 4096</span>
+                    <span id='rsa-dsa-key-size-hint' class='text-muted'>Key size: 1024, 2048, 4096</span>
                 </div>
             </div>
             <div class='form-group row mb-4'>
@@ -212,7 +369,8 @@ function form_generate_key() {
                 
                 <div class='col-sm-10'>
                     <div class='d-grid gap-2'>
-                        <input class='btn btn-primary mb-4' type='submit' value='Generate key'>
+                        <input class='btn btn-primary' type='submit' value='Generate key'>
+                        <span id='error-generate-key' class='text-danger'></span>
                     </div>
                 </div>
             </div>
@@ -222,8 +380,6 @@ function form_generate_key() {
     securityView.appendChild(div)
 
     document.querySelector('#generate-key-form').addEventListener('submit', () => {
-        console.log(document.querySelector('#generate-key-type').value);
-
         generate_key(
             document.querySelector('#generate-key-type').value,
             document.querySelector('#generate-key-size').value,
@@ -247,19 +403,23 @@ function generate_key(key_type, key_size, key_expiration, passphrase, comment) {
     event.preventDefault();
 
     // POST /security/generate
-    fetch('/security/generate', {
+    fetch('/api/security/generate', {
         method: 'POST',
         body: JSON.stringify({
             key_type,
-            key_size,
+            key_size: parseInt(key_size),
             comment,
-            key_expiration,
+            expire: parseInt(key_expiration),
             passphrase,
         })
     })
         .then(response => response.json())
         .then(result => {
             if (result.error) {
+                if (document.querySelector('#error-generate-key').hasChildNodes()) {
+                    document.querySelector('#error-generate-key').innerHTML = '';
+                }
+
                 const errorMsg = document.createElement('span')
                 errorMsg.textContent = result.error
                 document.querySelector('#error-generate-key').appendChild(errorMsg)
@@ -267,6 +427,7 @@ function generate_key(key_type, key_size, key_expiration, passphrase, comment) {
             }
 
             localStorage.clear();
+            document.querySelector('#security-view').innerHTML = '';
             load_security();
         })
 }
@@ -448,6 +609,12 @@ function view_email(email_id, mailbox) {
 function send_email() {
     event.preventDefault();
 
+    let passphrase = ''
+    const isSign = document.querySelector('#compose-sign').checked;
+    if (isSign) {
+        passphrase = document.querySelector('#compose-passphrase').value;
+    }
+
     // POST /emails
     fetch('/emails', {
         method: 'POST',
@@ -455,7 +622,9 @@ function send_email() {
             recipients: document.querySelector('#compose-recipients').value,
             subject: document.querySelector('#compose-subject').value,
             body: document.querySelector('#compose-body').value,
-            encrypt: document.querySelector('#compose-encrypt').checked
+            encrypt: document.querySelector('#compose-encrypt').checked,
+            sign: isSign,
+            passphrase: passphrase
         })
     })
         .then(response => response.json())
@@ -524,4 +693,9 @@ function read(email_id) {
             read: true
         })
     });
+}
+
+
+function capitalize_first_letter(string) {
+    return string.replace(/\b\w/g, char => char.toUpperCase());
 }

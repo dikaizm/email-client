@@ -67,14 +67,26 @@
                     <textarea id='compose-body' class='form-control' rows='10'></textarea>
                 </div>
             </div>
-            <div class='form-group row'>
-                <label class='col-sm-2 col-form-label'>
+
+            <div class="form-group row mb-4 d-flex align-items-center">
+                <label for='' class='col-sm-2 col-form-label'></label>
+                <div class="col-sm-10 d-flex" style="gap: 2rem">
                     <div class="form-check form-switch">
                         <label for='compose-encrypt' class='form-check-label'>Encrypt</label>
                         <input type='checkbox' role="switch" id='compose-encrypt' class='form-check-input'>
                     </div>
-                </label>
-                
+
+                    <div class="form-check form-switch">
+                        <label for='compose-sign' class='form-check-label'>Sign</label>
+                        <input type='checkbox' role="switch" id='compose-sign' class='form-check-input'>
+                    </div>
+
+                    <div id="passphrase-input"></div>
+                </div>
+            </div>
+
+            <div class='form-group row'>
+                <label for='' class='col-sm-2 col-form-label'></label>
                 <div class='col-sm-10'>
                     <div class='d-grid gap-2'>
                         <input class='btn btn-primary mb-4' type='submit' value='Send'>

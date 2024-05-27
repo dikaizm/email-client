@@ -1,5 +1,6 @@
 import json
-import gnupg
+import logging
+from datetime import datetime, timedelta
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
@@ -7,10 +8,12 @@ from django.http import JsonResponse
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from .utils import encrypt_message, decrypt_message
-from .models import User, Email, PGPKey, UserPublicKey, EmailPublicKey
+from ..utils import encrypt_message, decrypt_message
+from ..models import User, Email, PGPKey, UserPublicKey, EmailPublicKey
+from .security import generate_key, user_keys, user_key_item
+from .compose import compose
 
-gpg = gnupg.GPG()
+logger = logging.getLogger('app_api') #from LOGGING.loggers in settings.py
 
 def index(request):
     # Authenticated users view their inbox
@@ -60,8 +63,11 @@ def register(request):
             })
 
         # Attempt to create new user
+        first_name = request.POST['first_name']
+        last_name = request.POST['last_name']
+        
         try:
-            user = User.objects.create_user(email, email, password)
+            user = User.objects.create_user(email, email, password, first_name=first_name, last_name=last_name)
             user.save()
         except IntegrityError:
             return render(request, 'register.html', {
@@ -75,77 +81,8 @@ def register(request):
 
 @csrf_exempt
 @login_required
-def compose(request):
-
-    # Composing a new email must be via POST
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST request required.'}, status=400)
-
-    # Check recipient emails
-    data = json.loads(request.body)
-    emails = [email.strip() for email in data.get('recipients').split(',')]
-    if emails == ['']:
-        return JsonResponse({
-            'error': 'At least one recipient required.'
-        }, status=400)
-
-
-    # Convert email addresses to users
-    recipients = []
-    for email in emails:
-        try:
-            user = User.objects.get(email=email)    
-            recipients.append(user)
-        except User.DoesNotExist:
-            return JsonResponse({
-                'error': f'User with email {email} does not exist.'
-            }, status=400)
-
-    # Get contents of email
-    subject = data.get('subject', '')
-    body = data.get('body', '')
-    is_encrypt = data.get('encrypt', False)
-    
-    encrypted_bodies = {}
-    if is_encrypt:
-        for user in recipients:
-            try:
-                pgp_key = PGPKey.objects.get(user=user)
-            except PGPKey.DoesNotExist:
-                return JsonResponse({'error': f'PGP key for user {user.email} not found!'}, status=400)
-            
-            try:
-                encrypt_body = encrypt_message(body, pgp_key.public_key)
-            except ValueError:
-                return JsonResponse({'error': f'Failed to encrypt message for user {user.email}.'}, status=400)
-
-            encrypted_bodies[user] = encrypt_body
-
-
-    # Create and save email objects
-    all_users = set(recipients)
-    all_users.add(request.user)
-    
-    emails_to_save = []
-    for user in all_users:
-        email_body = encrypted_bodies[user] if is_encrypt and user in encrypted_bodies else body
-        email = Email(
-            user=user,
-            sender=request.user,
-            subject=subject,
-            body=email_body,
-            read=(user == request.user)
-        )
-        emails_to_save.append(email)
-    
-    # Bulk create emails
-    Email.objects.bulk_create(emails_to_save)
-    
-    # Create recipient relationships
-    for email in emails_to_save:
-        email.recipients.set(recipients)
-
-    return JsonResponse({'message': 'Email sent successfully.'}, status=201)
+def compose_view(request):
+    return compose(request)
 
 
 @login_required
@@ -205,6 +142,26 @@ def email(request, email_id):
         return JsonResponse({
             'error': 'GET or PUT request required.'
         }, status=400)
+
+
+# POST request to generate a new PGP key
+# Request body: { key_type, key_size, expiration, passphrase, comment }
+@csrf_exempt
+@login_required
+def generate_key_view(request):
+    return generate_key(request)
+
+
+@csrf_exempt
+@login_required
+def user_keys_view(request):
+    return user_keys(request)
+
+
+@csrf_exempt
+@login_required
+def user_key_item_view(request, key_id):
+    return user_key_item(request, key_id)
 
 
 @csrf_exempt
