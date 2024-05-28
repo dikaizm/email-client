@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from pgpy.constants import PubKeyAlgorithm, KeyFlags, HashAlgorithm, SymmetricKeyAlgorithm, CompressionAlgorithm
 from django.http import JsonResponse
 from mail.models import PGPKey
-from ..utils import hash_password
 
 logger = logging.getLogger('app_api') #from LOGGING.loggers in settings.py
 
@@ -83,10 +82,10 @@ def generate_key(request):
         # now we must add the new user id to the key. We'll need to specify all of our preferences at this point
         # because PGPy doesn't have any built-in key preference defaults at this time
         # this example is similar to GnuPG 2.1.x defaults, with no expiration or preferred keyserver
-        usage_flags = {KeyFlags.Sign}
-        hash_algs = [HashAlgorithm.SHA512, HashAlgorithm.SHA256]
-        symmetric_algs = [SymmetricKeyAlgorithm.AES256, SymmetricKeyAlgorithm.Camellia256]
-        compression_algs = [CompressionAlgorithm.BZ2, CompressionAlgorithm.Uncompressed]    
+        usage_flags = {KeyFlags.Sign, KeyFlags.EncryptCommunications}
+        hash_algs = [HashAlgorithm.SHA256]
+        symmetric_algs = [SymmetricKeyAlgorithm.AES256]
+        compression_algs = [CompressionAlgorithm.ZLIB]    
         
         key.add_uid(
             uid, 
@@ -99,7 +98,6 @@ def generate_key(request):
         
         key.protect(passphrase, SymmetricKeyAlgorithm.AES256, HashAlgorithm.SHA256)
         
-        hashed_passphrase = hash_password(passphrase)
         encrypt = False
         sign = False
         
@@ -123,7 +121,7 @@ def generate_key(request):
                 key_size=key_size,
                 encrypt=encrypt,
                 sign=sign,
-                passphrase=hashed_passphrase, 
+                passphrase=passphrase, 
                 expire_date=datetime.now() + timedelta(days=expiration), 
                 default_key=default_key,
                 created=datetime.now()

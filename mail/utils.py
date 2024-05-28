@@ -1,11 +1,10 @@
 import os
-import gnupg
 import pgpy
+import bcrypt
 import hmac
 import hashlib
 from django.conf import settings
 
-gpg = gnupg.GPG()
 
 def encrypt_message(message, public_key):
     # Load public key
@@ -48,25 +47,72 @@ def sign_message(message, private_key, passphrase):
     return str(signed_message)
 
 
+def verify_message(signed_message, sender_public_key):
+    # Load the sender's public key
+    pub_key, _ = pgpy.PGPKey.from_blob(sender_public_key)
+    
+    # Load the signed message
+    signed_pgp_message = pgpy.PGPMessage.from_blob(signed_message)
+    
+    # Verify the signature
+    verification = pub_key.verify(signed_pgp_message)
+    
+    if verification:
+        print("Signature is valid.")
+        return signed_pgp_message.message
+    else:
+        print("Signature verification failed.")
+        return None
+
+
 def encrypt_and_sign_message(message, recipient_public_key, sender_private_key, passphrase):
-    # Load the recipient's public key
-    pub_key, _ = pgpy.PGPKey.from_blob(recipient_public_key)
+    try:
+        # Load the recipient's public key
+        pub_key, _ = pgpy.PGPKey.from_blob(recipient_public_key)
+        
+        # Check if the public key has the encryption flag
+        if not any(uid.selfsig.key_flags & {pgpy.constants.KeyFlags.EncryptCommunications, pgpy.constants.KeyFlags.EncryptStorage} for uid in pub_key.userids):
+            raise ValueError("Recipient's public key is not valid for encryption.")
+        
+        # Load the sender's private key
+        priv_key, _ = pgpy.PGPKey.from_blob(sender_private_key)
+        
+        # Unlock the sender's private key with the passphrase
+        with priv_key.unlock(passphrase):
+            # Create a PGPMessage object from the plaintext message
+            pgp_message = pgpy.PGPMessage.new(message)
+            
+            # Sign the message using the sender's private key
+            signed_message = priv_key.sign(pgp_message)
+            
+            # Encrypt the signed message with the recipient's public key
+            encrypted_message = pub_key.encrypt(signed_message)
+        
+        return str(encrypted_message)
     
-    # Load the sender's private key
-    priv_key, _ = pgpy.PGPKey.from_blob(sender_private_key)
+    except ValueError as ve:
+        return ve
+
+
+def decrypt_and_verify_message(encrypted_message, recipient_private_key, passphrase, sender_public_key):
+    # Load the recipient's private key
+    priv_key, _ = pgpy.PGPKey.from_blob(recipient_private_key)
     
-    # Unlock the sender's private key with the passphrase
+    # Unlock the recipient's private key with the passphrase
     with priv_key.unlock(passphrase):
-        # Create a PGPMessage object from the plaintext message
-        pgp_message = pgpy.PGPMessage.new(message)
+        # Decrypt the message
+        decrypted_message = priv_key.decrypt(pgpy.PGPMessage.from_blob(encrypted_message))
         
-        # Sign the message
-        signed_message = priv_key.sign(pgp_message)
-        
-        # Encrypt the signed message with the recipient's public key
-        encrypted_message = pub_key.encrypt(signed_message)
+    # Load the sender's public key
+    pub_key, _ = pgpy.PGPKey.from_blob(sender_public_key)
     
-    return str(encrypted_message)
+    # Verify the signature
+    if pub_key.verify(decrypted_message):
+        print("Signature is valid.")
+        return decrypted_message.message
+    else:
+        print("Signature verification failed.")
+        return None
 
 
 def generate_salt():
@@ -74,22 +120,21 @@ def generate_salt():
 
 
 def hash_password(password):
+    # Get the secret key from settings
     secret_key = settings.SECRET_KEY.encode('utf-8')
-    salt = generate_salt()
-    # Create HMAC obj
-    hmac_obj = hmac.new(secret_key, salt + password.encode('utf-8'), hashlib.sha256)
-    # Compute HMAC
-    hashed_password = salt + hmac_obj.digest()
+    # Concatenate the secret key with the password
+    password_with_key = password.encode('utf-8') + secret_key
+    # Generate a salt
+    salt = bcrypt.gensalt()
+    # Hash the password with the salt
+    hashed_password = bcrypt.hashpw(password_with_key, salt)
     return hashed_password
 
 
-def check_password(password, hashed_password):
+def verify_password(password, hashed):
+    # Get the secret key from settings
     secret_key = settings.SECRET_KEY.encode('utf-8')
-    salt = hashed_password[:16]
-    stored_hash = bytes.fromhex(hashed_password[16:])
-    # Create HMAC obj with password and salt
-    hmac_obj = hmac.new(secret_key, salt.encode('utf-8') + password.encode('utf-8'), hashlib.sha256)
-    # Compute HMAC
-    new_hash = hmac_obj.digest()
-    # Compare computed HMAC and stored hash
-    return hmac.compare_digest(stored_hash, new_hash)
+    # Concatenate the secret key with the password
+    password_with_key = password.encode('utf-8') + secret_key
+    # Verify the provided password against the hashed password
+    return bcrypt.checkpw(password_with_key, hashed)

@@ -630,6 +630,11 @@ function send_email() {
         .then(response => response.json())
         .then(result => {
             if (result.error) {
+                // If #compose-to-error has child nodes, remove them
+                if (document.querySelector('#compose-to-error').hasChildNodes()) {
+                    document.querySelector('#compose-to-error').innerHTML = '';
+                }
+
                 const errorMsg = document.createElement('span')
                 errorMsg.textContent = result.error
                 document.querySelector('#compose-to-error').appendChild(errorMsg)

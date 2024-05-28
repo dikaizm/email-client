@@ -2,7 +2,7 @@ import json
 from django.http import JsonResponse
 
 from mail.models import Email, PGPKey, User
-from mail.utils import encrypt_message, encrypt_and_sign_message, check_password
+from mail.utils import encrypt_message, encrypt_and_sign_message, sign_message
 
 
 def compose(request):
@@ -40,26 +40,30 @@ def compose(request):
     sender_key = PGPKey.objects.filter(user=request.user, default_key=True).first()
     
     # Check passphrase validity
-    if check_password(passphrase, sender_key.passphrase) is False:
+    if is_sign and (passphrase != sender_key.passphrase):
         return JsonResponse({'error': 'Passphrase does not match'}, status=400)
     
-    sender_private_key = sender_key.private_key
-    
     encrypted_bodies = {}
-    if is_encrypt and is_sign:
+    if is_encrypt or is_sign:
         for user in recipients:
             try:
-                pgp_key = PGPKey.objects.get(user=user)
+                recipient_key = PGPKey.objects.get(user=user)
+                print(recipient_key.public_key)
             except PGPKey.DoesNotExist:
                 return JsonResponse({'error': f'PGP key for user {user.email} not found!'}, status=400)
             
-            try:
-                # encrypt_body = encrypt_message(body, pgp_key.public_key)
-                encrypt_and_sign_body = encrypt_and_sign_message(body, sender_private_key, pgp_key.public_key, passphrase)
-            except ValueError:
-                return JsonResponse({'error': f'Failed to encrypt message for user {user.email}.'}, status=400)
+            
+            if is_encrypt and is_sign:
+                secured_body = encrypt_and_sign_message(body, recipient_key.public_key, sender_key.private_key, passphrase)
+            elif is_encrypt:
+                secured_body = encrypt_message(body, recipient_key.public_key)
+            elif is_sign:
+                secured_body = sign_message(body, sender_key.private_key, passphrase)
+           
+            if isinstance(secured_body, ValueError):
+                return JsonResponse({'error': f'Failed to encrypt message for user {user.email}: {str(secured_body)}'}, status=400)
 
-            encrypted_bodies[user] = encrypt_and_sign_body
+            encrypted_bodies[user] = secured_body
 
 
     # Create and save email objects
@@ -74,7 +78,8 @@ def compose(request):
             sender=request.user,
             subject=subject,
             body=email_body,
-            read=(user == request.user)
+            read=(user == request.user),
+            encrypted=is_encrypt,
         )
         emails_to_save.append(email)
     
