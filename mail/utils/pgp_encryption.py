@@ -1,9 +1,4 @@
-import os
 import pgpy
-import bcrypt
-import hmac
-import hashlib
-from django.conf import settings
 
 
 def encrypt_message(message, public_key):
@@ -113,28 +108,3 @@ def decrypt_and_verify_message(encrypted_message, recipient_private_key, passphr
     else:
         print("Signature verification failed.")
         return None
-
-
-def generate_salt():
-    return os.urandom(16)
-
-
-def hash_password(password):
-    # Get the secret key from settings
-    secret_key = settings.SECRET_KEY.encode('utf-8')
-    # Concatenate the secret key with the password
-    password_with_key = password.encode('utf-8') + secret_key
-    # Generate a salt
-    salt = bcrypt.gensalt()
-    # Hash the password with the salt
-    hashed_password = bcrypt.hashpw(password_with_key, salt)
-    return hashed_password
-
-
-def verify_password(password, hashed):
-    # Get the secret key from settings
-    secret_key = settings.SECRET_KEY.encode('utf-8')
-    # Concatenate the secret key with the password
-    password_with_key = password.encode('utf-8') + secret_key
-    # Verify the provided password against the hashed password
-    return bcrypt.checkpw(password_with_key, hashed)

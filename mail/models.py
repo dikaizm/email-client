@@ -33,6 +33,24 @@ class Email(models.Model):
         }
 
 
+class EmailHMAC(models.Model):
+    email = models.OneToOneField(Email, on_delete=models.CASCADE, related_name='hmac')
+    hmac = models.TextField(db_index=True)
+    secret_key = models.CharField(max_length=255, db_index=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'mail_email_hmacs'
+
+    def serialize(self):
+        return {
+            'email': self.email.id,
+            'hmac': self.hmac,
+            'secret_key': self.secret_key,
+            'created': self.created.strftime('%b %d %Y, %I:%M %p')
+        }
+
+
 class PGPKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pgp_keys')
     # key_id = models.CharField(max_length=255, db_index=True, unique=True, null=True, blank=True)
@@ -79,14 +97,14 @@ class PGPKey(models.Model):
         }
         
         
-class UserPublicKey(models.Model):
+class UserRecipientPublicKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='public_keys')
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='public_keys_received')
     public_key = models.TextField()
     expire_date = models.DateTimeField(db_index=True)
     
     class Meta:
-        db_table = 'mail_user_public_keys'
+        db_table = 'mail_user_recipient_public_keys'
         unique_together = ('user', 'recipient')
         indexes = [
             models.Index(fields=['user', 'recipient']),  # Composite index
@@ -104,18 +122,20 @@ class UserPublicKey(models.Model):
         }
         
         
-class EmailPublicKey(models.Model):
+class EmailPGPKey(models.Model):
     email = models.ForeignKey(Email, on_delete=models.CASCADE, related_name='public_keys')
-    user_public_key = models.ForeignKey(UserPublicKey, on_delete=models.CASCADE, related_name='emails')
+    recipient_public_key = models.ForeignKey(UserRecipientPublicKey, on_delete=models.CASCADE, related_name='emails')
+    sender_private_key = models.ForeignKey(PGPKey, on_delete=models.CASCADE, related_name='emails')
     
     class Meta:
-        db_table = 'mail_email_public_keys'
+        db_table = 'mail_email_pgp_keys'
         indexes = [
-            models.Index(fields=['email', 'user_public_key']),  # Composite index
+            models.Index(fields=['email', 'recipient_public_key']),  # Composite index
         ]
     
     def serialize(self):
         return {
             'email': self.email.id,
-            'user_public_key': self.user_public_key.id
+            'recipient_public_key': self.recipient_public_key.public_key,
+            'sender_private_key': self.sender_private_key.private_key
         }

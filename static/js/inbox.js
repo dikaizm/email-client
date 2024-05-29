@@ -450,7 +450,7 @@ function load_mailbox(mailbox) {
     fetch(`/emails/${mailbox}`)
         .then(response => response.json())
         .then(emails => {
-            console.log(emails);
+            const user = getCookie('user_email')
 
             emails.forEach(email => {
                 if (mailbox == 'inbox') {
@@ -462,6 +462,8 @@ function load_mailbox(mailbox) {
                 } else {
                     is_read = 'unread';
                 }
+
+                const encryptCondition = email.encrypted && (email.recipients != user);
 
                 let div = document.createElement('div');
                 div.className = `card my-1 items`;
@@ -478,7 +480,9 @@ function load_mailbox(mailbox) {
                                 <strong>Date:</strong> ${email.timestamp}
                             </p>
                             <p class='card-text'>
-                                ${email.body.slice(0, 99)}
+                                ${encryptCondition ? email.body.slice(0, 99) : `
+                                    Encrypted message
+                                `}
                             </p>
                             <a href='#' class='btn btn-primary'>
                                 <i class='fas fa-book-reader'></i> Read
@@ -499,7 +503,9 @@ function load_mailbox(mailbox) {
                                 <strong>Date:</strong> ${email.timestamp}
                             </p>
                             <p class='card-text'>
-                                ${email.body.slice(0, 99)} <a href='#'>(more...)</a>
+                                ${encryptCondition ? (`${email.body.slice(0, 99)} <a href='#'>(more...)</a>`) : `
+                                    Encrypted message
+                                `}
                             </p>
                             <a href='#' class='btn btn-primary'>
                                 <i class='fas fa-book-reader'></i> Read
@@ -528,7 +534,17 @@ function view_email(email_id, mailbox) {
     fetch(`/emails/${email_id}`)
         .then(response => response.json())
         .then(email => {
+            console.log(email)
+
+            // Get cookie user email
+            let user = getCookie('user_email')
+            // Delete " " in front and end of user email
+            
+            console.log(email.sender, user)
+
             document.querySelector('#emails-view').innerHTML = '';
+
+            const encryptCondition = email.encrypted && (email.sender != user);
 
             let div = document.createElement('div');
             div.className = `card my-1 items`;
@@ -544,8 +560,8 @@ function view_email(email_id, mailbox) {
                     </p>
                     <div class='card-text'>
                         <strong>Message:</strong> <br>
-                        <div class='text-center d-flex flex-column gap-4'>
-                            ${(email.encrypted) ? (
+                        <div class='d-flex flex-column gap-4 ${encryptCondition ? 'text-center' : ''}'>
+                            ${encryptCondition ? (
                     `
                                         <p>
                                             ${email.sender} has sent you a protected message. Please click the button below to view the message.
@@ -703,4 +719,14 @@ function read(email_id) {
 
 function capitalize_first_letter(string) {
     return string.replace(/\b\w/g, char => char.toUpperCase());
+}
+
+
+function getCookie(name) {
+    const regex = new RegExp(`(^| )${name}=([^;]+)`)
+    const match = document.cookie.match(regex)
+    if (match) {
+        const cleanedMatch = match[2].replace(/"/g, '')
+        return cleanedMatch
+    }
 }

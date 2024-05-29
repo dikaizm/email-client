@@ -6,7 +6,7 @@ urlpatterns = [
     path('', index.index, name='index'),
     path('login', index.login_view, name='login'),
     path('logout', index.logout_view, name='logout'),
-    path('register', index.register, name='register'),
+    path('register', index.register_view, name='register'),
 
     # API Routes
     path('emails', index.compose_view, name='compose'),
