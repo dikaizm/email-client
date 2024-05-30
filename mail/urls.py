@@ -12,6 +12,7 @@ urlpatterns = [
     path('emails', index.compose_view, name='compose'),
     path('emails/<int:email_id>', index.email, name='email'),
     path('emails/<str:mailbox>', index.mailbox, name='mailbox'),
+    path('emails/decrypt/<int:email_id>', index.decrypt_email_view, name='decrypt_message'),
     
     path('api/security/generate', index.generate_key_view, name='generate_key'),
     path('api/security/keys', index.user_keys_view, name='user_keys'),

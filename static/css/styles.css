@@ -25,3 +25,7 @@ textarea {
 .items {
     cursor: pointer;
 }
+
+.h-half {
+    height: 50vh;
+}

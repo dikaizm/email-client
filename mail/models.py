@@ -18,6 +18,7 @@ class Email(models.Model):
     read = models.BooleanField(default=False)
     archived = models.BooleanField(default=False)
     encrypted = models.BooleanField(default=False)
+    signed = models.BooleanField(default=False)
 
     def serialize(self):
         return {
@@ -29,7 +30,8 @@ class Email(models.Model):
             'timestamp': self.timestamp.strftime('%b %d %Y, %I:%M %p'),
             'read': self.read,
             'archived': self.archived,
-            'encrypted': self.encrypted
+            'encrypted': self.encrypted,
+            'signed': self.signed,
         }
 
 

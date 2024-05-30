@@ -6,12 +6,11 @@ from django.http import JsonResponse
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from ..utils.pgp_encryption import decrypt_message
 from ..models import Email, PGPKey
 from .security import generate_key, user_keys, user_key_item
 from .compose import compose
 from .auth import login_service, register_service
-from .email import get_email
+from .email import get_email, decrypt_email
 
 
 logger = logging.getLogger('app_api') #from LOGGING.loggers in settings.py
@@ -122,45 +121,5 @@ def user_key_item_view(request, key_id):
 
 @csrf_exempt
 @login_required
-def decrypt(request, email_id):
-    
-    try:
-        email = Email.objects.get(user=request.user, pk=email_id)
-    except:
-        return JsonResponse({'error': 'Email not found.'}, status=404)
-    
-    if request.method == 'GET':
-        if not email.encrypted:
-            return JsonResponse({'error': 'Email is not encrypted.'}, status=400)
-        
-        try:
-            pgp_key = PGPKey.objects.get(user=request.user)
-            decrypted_body = decrypt_message(email.body, pgp_key.private_key, pgp_key.passphrase)
-            if decrypted_body == ValueError:
-                return JsonResponse({'error': 'Failed to decrypt message.'}, status=400)
-            
-            return JsonResponse({'decrypted_body': decrypted_body})
-        except PGPKey.DoesNotExist:
-            return JsonResponse({'error': 'PGP key not found.'}, status=400)
-    
-    else:
-        return JsonResponse({
-            'error': 'GET request required.'
-        }, status=400)
-
-
-@csrf_exempt
-@login_required
-def manage_pgp(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        user = request.user
-        user.pgp_key = data.get('pgp_key')
-        user.save()
-        return JsonResponse({'message': 'PGP key saved successfully.'}, status=201)
-    elif request.method == 'GET':
-        return JsonResponse({'pgp_key': request.user.pgp_key})
-    else:
-        return JsonResponse({
-            'error': 'GET or POST request required.'
-        }, status=400)
+def decrypt_email_view(request, email_id):
+    return decrypt_email(request, email_id)

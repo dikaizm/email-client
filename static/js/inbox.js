@@ -279,7 +279,7 @@ function user_key_detail(data) {
             'default_key': 'Default Key',
             'created': 'Created'
         };
-    
+
         return keyMap[key] || key;
     }
 
@@ -481,7 +481,7 @@ function load_mailbox(mailbox) {
                             </p>
                             <p class='card-text'>
                                 ${encryptCondition ? email.body.slice(0, 99) : `
-                                    Encrypted message
+                                    <i class='fas fa-lock'></i> Encrypted message
                                 `}
                             </p>
                             <a href='#' class='btn btn-primary'>
@@ -504,7 +504,7 @@ function load_mailbox(mailbox) {
                             </p>
                             <p class='card-text'>
                                 ${encryptCondition ? (`${email.body.slice(0, 99)} <a href='#'>(more...)</a>`) : `
-                                    Encrypted message
+                                    <i class='fas fa-lock'></i> Encrypted message
                                 `}
                             </p>
                             <a href='#' class='btn btn-primary'>
@@ -534,54 +534,37 @@ function view_email(email_id, mailbox) {
     fetch(`/emails/${email_id}`)
         .then(response => response.json())
         .then(email => {
-            console.log(email)
 
             // Get cookie user email
             let user = getCookie('user_email')
-            // Delete " " in front and end of user email
-            
-            console.log(email.sender, user)
 
             document.querySelector('#emails-view').innerHTML = '';
 
             const encryptCondition = email.encrypted && (email.sender != user);
 
-            let div = document.createElement('div');
-            div.className = `card my-1 items`;
-            div.innerHTML = `
-            <div class='card'>
-                <div class='card-header'>
-                    <strong>${email.subject}</strong>
-                </div>
-                <div class='card-body' id='item-${email.id}'>
-                    <p class='card-title'>
-                        <strong>From:</strong> <strong><span class='text-info'>${email.sender}</span></strong> &nbsp; |  &nbsp; <strong>To: </strong> <strong><span class='text-info'>${email.recipients}</span></strong> &nbsp; |  &nbsp; <strong>Date:</strong> ${email.timestamp} 
-                        <br>
-                    </p>
-                    <div class='card-text'>
-                        <strong>Message:</strong> <br>
-                        <div class='d-flex flex-column gap-4 ${encryptCondition ? 'text-center' : ''}'>
-                            ${encryptCondition ? (
+            let emailCard = renderEmailView(email,
+                `
+                    <strong>Message:</strong> <br>
+                    <div class='d-flex flex-column gap-4 ${encryptCondition ? 'text-center' : ''}'>
+                        ${encryptCondition ? (
                     `
-                                        <p>
-                                            ${email.sender} has sent you a protected message. Please click the button below to view the message.
-                                        </p>
-                                        <i class='fas fa-lock'></i>
-                                        <div>
-                                            <a href='#' class='btn btn-primary'>
-                                                Read the message
-                                            </a>
-                                        </div>
-                                    `
+                                    <p>
+                                        ${email.sender} has sent you a protected message. Please click the button below to view the message.
+                                    </p>
+                                    <i class='fas fa-lock'></i>
+                                    <div>
+                                        <button type='button' id='btn-read-secured-email' class='btn btn-primary'>
+                                            Read the message
+                                        </button>
+                                    </div>
+                                `
                 ) : `<p>${email.body}</p>`
                 }
-                        </div>
                     </div>
-                </div>
-            </div>
-        `;
+                `
+            )
 
-            document.querySelector('#emails-view').appendChild(div);
+            document.querySelector('#emails-view').appendChild(emailCard);
             if (mailbox == 'sent') return;
 
             let archiveBtn = document.createElement('btn');
@@ -612,6 +595,10 @@ function view_email(email_id, mailbox) {
             replyBtn.addEventListener('click', () => {
                 reply(email.sender, email.subject, email.body, email.timestamp);
             });
+
+            // Handle for read secured email
+            let readSecuredMsgBtn = document.querySelector('#btn-read-secured-email');
+            readSecuredMsgBtn.addEventListener('click', () => handleReadSecuredMsg(email_id));
 
             document.querySelector('#emails-view').appendChild(replyBtn);
             read(email_id);
@@ -729,4 +716,167 @@ function getCookie(name) {
         const cleanedMatch = match[2].replace(/"/g, '')
         return cleanedMatch
     }
+}
+
+
+function handleReadSecuredMsg(email_id) {
+    // Clear email view
+    let emailView = document.querySelector('#emails-view');
+    emailView.innerHTML = '';
+
+    // Load passphrase input view
+    emailView.appendChild(renderInputPassphrase());
+
+    // Add event listener to submit passphrase
+    let submitBtn = document.querySelector('#btn-submit-passphrase');
+    submitBtn.addEventListener('click', () => {
+        handleSubmitPassphrase(email_id);
+    })
+}
+
+
+function handleSubmitPassphrase(email_id) {
+    let passphraseValue = document.querySelector('#email-secured-passphrase').value;
+
+    if (!passphraseValue) {
+        document.querySelector('#error-email-passphrase').textContent = 'Passphrase is required';
+    }
+
+    fetch(`/emails/decrypt/${email_id}`, {
+        method: 'POST',
+        body: JSON.stringify({
+            passphrase: passphraseValue
+        })
+    })
+        .then(response => response.json())
+        .then(result => {
+
+            if (result.error) {
+                console.error('Error decrypting message:', result.error);
+                let errorDiv = document.querySelector('#error-email-passphrase');
+                if (errorDiv.hasChildNodes()) {
+                    errorDiv.innerHTML = '';
+                }
+                errorDiv.textContent = 'Invalid passphrase';
+                return;
+            }
+
+            const email = result.data;
+
+            let emailCard = renderEmailView(email, `
+                <strong>Message:</strong> <br>
+                <div class='d-flex flex-column gap-4'>
+                    <p>${email.body}</p>
+                </div>
+            `, `
+                <div class='badge bg-info'>
+                    <i class='fas fa-lock'></i>
+                    <span>This email is encrypted</span>
+                </div>
+            `);
+
+            // Clear email view
+            let emailView = document.querySelector('#emails-view');
+            emailView.innerHTML = '';
+            emailView.appendChild(emailCard);
+
+            let archiveBtn = document.createElement('btn');
+            archiveBtn.className = `btn btn-warning my-2`;
+
+            archiveBtn.addEventListener('click', () => {
+                archive_and_unarchive(email_id, email.archived);
+
+                if (archiveBtn.innerText == 'Archive') {
+                    archiveBtn.innerText = 'Unarchive';
+                } else {
+                    archiveBtn.innerText = 'Archive';
+                }
+            });
+
+            if (!email.archived) {
+                archiveBtn.innerHTML = `<i class='fas fa-folder-open'></i> Archive`;
+            } else {
+                archiveBtn.innerHTML = `<i class='fas fa-folder'></i> Unarchive`;
+            }
+
+            document.querySelector('#emails-view').appendChild(archiveBtn);
+
+            let replyBtn = document.createElement('btn');
+            replyBtn.className = `btn btn-success my-2`;
+            replyBtn.style.cssText = 'margin-left: 15px';
+            replyBtn.innerHTML = `<i class='fas fa-reply'></i> Reply`;
+            replyBtn.addEventListener('click', () => {
+                reply(email.sender, email.subject, email.body, email.timestamp);
+            });
+
+            document.querySelector('#emails-view').appendChild(replyBtn);
+            read(email_id);
+
+        })
+        .catch(error => {
+            console.error('Error fetching decrypted message:', error);
+            let errorDiv = document.querySelector('#error-email-passphrase');
+            if (errorDiv.hasChildNodes()) {
+                errorDiv.innerHTML = '';
+            }
+            errorDiv.textContent = 'Invalid passphrase';
+        });
+}
+
+
+function renderEmailView(email, element, flag = null) {
+    let div = document.createElement('div');
+    div.className = `card my-1 items`;
+    div.innerHTML = `
+        <div class='card'>
+            <div class='card-header'>
+                <strong>${email.subject}</strong>
+            </div>
+            <div class='card-body' id='item-${email.id}'>
+                <p class='card-title'>
+                    <strong>From:</strong> <strong><span class='text-info'>${email.sender}</span></strong> &nbsp; |  &nbsp; <strong>To: </strong> <strong><span class='text-info'>${email.recipients}</span></strong> &nbsp; |  &nbsp; <strong>Date:</strong> ${email.timestamp} 
+                    <br>
+                </p>
+                <div class='card-text' id='email-message'>
+                    ${element}
+                </div>
+
+                ${flag ? flag : ''}
+            </div>
+        </div>
+    `;
+
+    return div;
+}
+
+function renderInputPassphrase() {
+    let div = document.createElement('div');
+    div.classList.add('h-half', 'd-flex', 'flex-column', 'justify-content-center');
+    div.innerHTML = `
+        <div class='mb-3'>
+            <h3>Enter your passphrase to read the message</h3>
+        </div>
+
+        <div class='form-group row w-100 align-items-center'>
+            <label for='email-secured-passphrase' class='col-sm-2 col-form-label d-flex align-items-center gap-2'>
+                <i class='fas fa-key'></i>
+                <span>Passphrase</span>
+            </label>
+            <div class='col-sm-8'>
+                <input id='email-secured-passphrase' class='form-control'>
+            </div>
+
+            <div class='col-sm-2'>
+                <button type='button' id='btn-submit-passphrase' class='btn btn-primary'>Submit</button>
+            </div>
+        </div>
+
+        <div class='form-group row w-100'>
+            <div class='col-sm-10 offset-sm-2'>
+                <span id='error-email-passphrase' class='text-danger'></span>
+            </div>
+        </div>
+    `;
+
+    return div;
 }
