@@ -91,6 +91,19 @@ function load_security() {
                 return
             }
 
+            if (result.length === 0) {
+                const noKey = document.createElement('div')
+                noKey.classList.add('text-center', 'mt-3')
+                noKey.innerHTML = `
+                    <div class='alert alert-dark' role='alert'>
+                        No key pair generated
+                    </div>
+                `;
+
+                myPgpKey.appendChild(noKey);
+                return
+            }
+
             const myPgpKeyTable = document.createElement('div')
             myPgpKeyTable.innerHTML = `
                 <table class='table table-hover table-dark mt-3'>
@@ -107,93 +120,101 @@ function load_security() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${user_keys_table(result)}
+                        ${userKeysTable(result)}
                     </tbody>
                 </table>
             `;
 
             myPgpKey.appendChild(myPgpKeyTable);
-            click_user_key_item();
+            handle_user_key_item();
         });
 
     pageView.appendChild(myPgpKey);
 
-    // Recipient saved public key
-    const recipientPgpKey = document.createElement('div')
-    recipientPgpKey.style.marginTop = '2rem';
-    recipientPgpKey.innerHTML = `
+    // Received public key
+    const receivedPublicKey = document.createElement('div')
+    receivedPublicKey.style.marginTop = '2rem';
+
+    const receivedPublicKeyHeader = document.createElement('div')
+    receivedPublicKey.innerHTML = `
         <div>
-            <h5>Recipients' Keys</h5>
-            <div>
-                <button type='button' class='btn btn-primary' id='btn-import-recipient-key'>
-                    <i class='fas fa-plus'></i> Import a public key
-                </button>
-            </div>
-            <table class='table table-hover table-dark mt-3'>
-                <thead>
-                    <tr>
-                        <th scope="col">#</th>
-                        <th scope="col">User</th>
-                        <th scope="col">Email</th>
-                        <th scope="col">Public Key</th>
-                        <th scope="col">Expire</th>
-                        <th scope="col">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <th scope="row">1</th>
-                        <td>John Doe</td>
-                        <td>john@mail.com</td>
-                        <td>ankoaidjoajd-12kj1kkad</td>
-                        <td>12 July 2024</td>
-                        <td>
-                            <a href='#' class='btn btn-danger'>
-                                <i class='fas fa-trash'></i> Delete
-                            </a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row">1</th>
-                        <td>John Doe</td>
-                        <td>john@mail.com</td>
-                        <td>ankoaidjoajd-12kj1kkad</td>
-                        <td>12 July 2024</td>
-                        <td>
-                            <a href='#' class='btn btn-danger'>
-                                <i class='fas fa-trash'></i> Delete
-                            </a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row">1</th>
-                        <td>John Doe</td>
-                        <td>john@mail.com</td>
-                        <td>ankoaidjoajd-12kj1kkad</td>
-                        <td>12 July 2024</td>
-                        <td>
-                            <a href='#' class='btn btn-danger'>
-                                <i class='fas fa-trash'></i> Delete
-                            </a>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <h5>User Keys</h5>
+            <span class='badge bg-info'>Public keys received from other users</span>
         </div>
+        <!--
+        <div>
+            <button type='button' class='btn btn-primary' id='btn-import-received-key'>
+                <i class='fas fa-plus'></i> Import a public key
+            </button>
+        </div>
+        -->
     `
 
-    pageView.appendChild(recipientPgpKey);
+    receivedPublicKey.appendChild(receivedPublicKeyHeader)
+
+    // GET /security/received_keys
+    fetch('/api/security/received-keys', {
+        method: 'GET'
+    })
+        .then(response => response.json())
+        .then(result => {
+            console.log(result);
+
+            if (result.error) {
+                const errorMsg = document.createElement('span')
+                errorMsg.textContent = result.error
+                receivedPublicKey.appendChild(errorMsg)
+                return
+            }
+
+            if (result.length === 0) {
+                const noKey = document.createElement('div')
+                noKey.classList.add('text-center', 'mt-3')
+                noKey.innerHTML = `
+                    <div class='alert alert-dark' role='alert'>
+                        No user public key received
+                    </div>
+                `;
+
+                receivedPublicKey.appendChild(noKey);
+                return
+            }
+
+            const receivedPublicKeyTable = document.createElement('div')
+            receivedPublicKeyTable.innerHTML = `
+                <table class='table table-hover table-dark mt-3'>
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">User</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Key ID</th>
+                            <th scope="col">Expire</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${receivedPublicKeysTable(result)}
+                    </tbody>
+                </table>
+            `;
+
+            receivedPublicKey.appendChild(receivedPublicKeyTable);
+            handle_received_key_item();
+        })
+
+    pageView.appendChild(receivedPublicKey);
 
     // Button to show generate key pair form
     document.querySelector('#btn-generate-key-form').addEventListener('click', form_generate_key);
 }
 
 
-function click_user_key_item() {
+function handle_user_key_item() {
     document.querySelectorAll('.btn-user-key-detail').forEach(button => {
         button.addEventListener('click', function () {
             const keyId = this.getAttribute('data-key-id');
-            fetch(`/api/security/keys/${keyId}`)
+            fetch(`/api/security/keys/${keyId}`, { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
                     user_key_detail(data);
@@ -225,7 +246,43 @@ function click_user_key_item() {
 }
 
 
-function user_keys_table(data) {
+function handle_received_key_item() {
+    document.querySelectorAll('.btn-received-key-detail').forEach(button => {
+        button.addEventListener('click', function () {
+            const keyId = this.getAttribute('data-key-id');
+            fetch(`/api/security/received-keys/${keyId}`, { method: 'GET' })
+                .then(response => response.json())
+                .then(data => {
+                    received_key_detail(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching key details:', error);
+                });
+        });
+    });
+
+    document.querySelectorAll('.btn-received-key-delete').forEach(button => {
+        button.addEventListener('click', function () {
+            const keyId = this.getAttribute('data-key-id');
+            fetch(`/api/security/received-keys/${keyId}`, { method: 'DELETE' })
+                .then(response => {
+                    if (response.ok) {
+                        const securityView = document.querySelector('#security-view');
+                        securityView.innerHTML = '';
+                        load_security();
+                    } else {
+                        console.error('Failed to delete key');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting key:', error);
+                });
+        });
+    });
+}
+
+
+function userKeysTable(data) {
     const tableRows = data.map((item, index) => {
         return `
             <tr>
@@ -252,6 +309,33 @@ function user_keys_table(data) {
                 </td>
             </tr>
         `;
+    }).join('');
+
+    return tableRows
+}
+
+
+function receivedPublicKeysTable(data) {
+    const tableRows = data.map((item, index) => {
+        const fullname = `${item.owner_first_name} ${item.owner_last_name}`;
+
+        return `
+        <tr>
+            <th scope="row">${index + 1}</th>
+            <td>${fullname}</td>
+            <td>${item.owner_email}</td>
+            <td class='w-30 text-break'>${item.key_id}</td>
+            <td>${item.expire_date}</td>
+            <td>
+                <button type='button' class='btn btn-primary btn-received-key-detail' data-key-id='${item.key_id}' title='detail'>
+                    <i class='fas fa-eye'></i>
+                </button>
+                <button type='button' class='btn btn-danger btn-received-key-delete' data-key-id='${item.key_id}' title='delete'>
+                    <i class='fas fa-trash'></i>
+                </button>
+            </td>
+        </tr>
+        `
     }).join('');
 
     return tableRows
@@ -287,6 +371,74 @@ function user_key_detail(data) {
         objToArr = Object.entries(data).map(([key, value]) => {
             return { key: key, value: value }
         })
+
+        return objToArr.map(item => {
+            return `
+                <tr>
+                    <td scope="row">${key_mapper(item.key)}</td>
+                    <td>${item.value}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    const div = document.createElement('div')
+    div.innerHTML = `
+        <h3 class='mb-4'>Key Details</h3>
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th scope="col">Description</th>
+                    <th scope="col">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${key_detail_rows()}
+            </tbody>
+        </table>
+    `;
+
+    securityView.appendChild(div);
+}
+
+
+/**
+ * 
+ * @param data {owner_first_name, owner_last_name, owner_email, key_id, public_key, expire_date}
+ */
+function received_key_detail(data) {
+    const securityView = document.querySelector('#security-view');
+    securityView.innerHTML = '';
+
+    function key_mapper(key) {
+        const keyMap = {
+            'owner': 'User',
+            'owner_email': 'Email',
+            'key_id': 'Key ID',
+            'public_key': 'Public Key',
+            'expire_date': 'Expire Date',
+        };
+
+        return keyMap[key] || key;
+    }
+
+    function key_detail_rows() {
+        data['owner'] = `${data['owner_first_name']} ${data['owner_last_name']}`;
+        delete data['owner_first_name'];
+        delete data['owner_last_name'];
+
+        // Create a new object with 'owner' as the first key
+        let newData = { owner: data.owner };
+        for (let key in data) {
+            if (key !== 'owner') {
+                newData[key] = data[key];
+            }
+        }
+
+        // Convert the object to an array of key-value pairs
+        let objToArr = Object.entries(newData).map(([key, value]) => {
+            return { key: key, value: value };
+        });
 
         return objToArr.map(item => {
             return `
@@ -561,6 +713,13 @@ function view_email(email_id, mailbox) {
                 ) : `<p>${email.body}</p>`
                 }
                     </div>
+                `, `
+                    ${email.encrypted ? `
+                        <div class='badge bg-info'>
+                            <i class='fas fa-lock'></i>
+                            <span>This email is encrypted</span>
+                        </div>
+                    ` : ''}
                 `
             )
 
@@ -728,8 +887,8 @@ function handleReadSecuredMsg(email_id) {
     emailView.appendChild(renderInputPassphrase());
 
     // Add event listener to submit passphrase
-    let submitBtn = document.querySelector('#btn-submit-passphrase');
-    submitBtn.addEventListener('click', () => {
+    let passphraseForm = document.querySelector('#form-input-passphrase');
+    passphraseForm.addEventListener('submit', () => {
         handleSubmitPassphrase(email_id);
     })
 }
@@ -857,19 +1016,21 @@ function renderInputPassphrase() {
             <h3>Enter your passphrase to read the message</h3>
         </div>
 
-        <div class='form-group row w-100 align-items-center'>
-            <label for='email-secured-passphrase' class='col-sm-2 col-form-label d-flex align-items-center gap-2'>
-                <i class='fas fa-key'></i>
-                <span>Passphrase</span>
-            </label>
-            <div class='col-sm-8'>
-                <input id='email-secured-passphrase' class='form-control'>
-            </div>
+        <form id='form-input-passphrase'>
+            <id class='form-group row w-100 align-items-center'>
+                <label for='email-secured-passphrase' class='col-sm-2 col-form-label d-flex align-items-center gap-2'>
+                    <i class='fas fa-key'></i>
+                    <span>Passphrase</span>
+                </label>
+                <div class='col-sm-8'>
+                    <input id='email-secured-passphrase' class='form-control'>
+                </div>
 
-            <div class='col-sm-2'>
-                <button type='button' id='btn-submit-passphrase' class='btn btn-primary'>Submit</button>
-            </div>
-        </div>
+                <div class='col-sm-2'>
+                    <button type='submit' id='btn-submit-passphrase' class='btn btn-primary'>Submit</button>
+                </div>
+            </id>
+        </form>
 
         <div class='form-group row w-100'>
             <div class='col-sm-10 offset-sm-2'>

@@ -17,4 +17,6 @@ urlpatterns = [
     path('api/security/generate', index.generate_key_view, name='generate_key'),
     path('api/security/keys', index.user_keys_view, name='user_keys'),
     path('api/security/keys/<str:key_id>', index.user_key_item_view, name='user_key_item'),
+    path('api/security/received-keys', index.received_keys_view, name='received_keys'),
+    path('api/security/received-keys/<str:key_id>', index.received_key_item_view, name='received_key_item')
 ]

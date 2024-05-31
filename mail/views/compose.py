@@ -1,7 +1,7 @@
 import json
 from django.http import JsonResponse
 from django.conf import settings
-from mail.models import Email, PGPKey, User, EmailHMAC, UserRecipientPublicKey, EmailPGPKey
+from mail.models import Email, PGPKey, User, EmailHMAC, ReceivedPublicKey, EmailPGPKey
 from mail.utils.pgp_encryption import encrypt_message, encrypt_and_sign_message, sign_message
 from mail.utils.hmac_auth import generate_hmac
 
@@ -57,9 +57,10 @@ def compose(request):
         for user in recipients:
             try:
                 recipient_key = PGPKey.objects.get(user=user)
-                pub_key = UserRecipientPublicKey(
+                pub_key = ReceivedPublicKey(
                     user=request.user,
-                    recipient=user,
+                    owner=user,
+                    key_id=recipient_key.key_id,
                     public_key=recipient_key.public_key,
                     expire_date=recipient_key.expire_date
                 )
@@ -100,7 +101,7 @@ def compose(request):
     
     # Bulk create emails
     Email.objects.bulk_create(emails_to_save)
-    UserRecipientPublicKey.objects.bulk_create(public_keys_to_save)
+    ReceivedPublicKey.objects.bulk_create(public_keys_to_save)
     
     # Create recipient relationships
     for email in emails_to_save:

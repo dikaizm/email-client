@@ -4,15 +4,18 @@ import pgpy
 from datetime import datetime, timedelta
 from pgpy.constants import PubKeyAlgorithm, KeyFlags, HashAlgorithm, SymmetricKeyAlgorithm, CompressionAlgorithm
 from django.http import JsonResponse
-from mail.models import PGPKey
+from mail.models import PGPKey, ReceivedPublicKey
 
 logger = logging.getLogger('app_api') #from LOGGING.loggers in settings.py
 
 
 def user_keys(request):
     if request.method == 'GET':
-        pgp_keys = PGPKey.objects.filter(user=request.user).only('key_id', 'expire_date', 'encrypt', 'sign', 'key_size', 'default_key', 'created')
-        return JsonResponse([key.serialize_public() for key in pgp_keys], safe=False)
+        try:
+            pgp_keys = PGPKey.objects.filter(user=request.user).only('key_id', 'expire_date', 'encrypt', 'sign', 'key_size', 'default_key', 'created')
+            return JsonResponse([key.serialize_public() for key in pgp_keys], safe=False)
+        except PGPKey.DoesNotExist:
+            return JsonResponse({'error': 'PGP keys not found.'}, status=404)
     else:
         return JsonResponse({
             'error': 'GET request required.'
@@ -38,6 +41,42 @@ def user_key_item(request, key_id):
     else:
         return JsonResponse({
             'error': 'GET or DELETE request required.'
+        }, status=400)
+        
+        
+def received_keys(request):
+    if request.method == 'GET':
+        try:
+            keys = ReceivedPublicKey.objects.filter(user=request.user)
+            return JsonResponse([key.serialize_public() for key in keys], safe=False)
+        except ReceivedPublicKey.DoesNotExist:
+            return JsonResponse({'error': 'Received keys not found.'}, status=404)
+        
+    else:
+        return JsonResponse({
+            'error': 'GET request required.'
+        }, status=400)
+        
+
+def received_key_item(request, key_id):
+    if request.method == 'GET':
+        try:
+            keys = ReceivedPublicKey.objects.get(user=request.user, key_id=key_id)
+            return JsonResponse(keys.serialize_public())
+        except ReceivedPublicKey.DoesNotExist:
+            return JsonResponse({'error': 'Received keys not found.'}, status=404)
+    
+    elif request.method == 'DELETE':
+        try:
+            keys = ReceivedPublicKey.objects.filter(user=request.user, key_id=key_id)
+            keys.delete()
+            return JsonResponse({'message': 'Received keys deleted successfully.'})
+        except ReceivedPublicKey.DoesNotExist:
+            return JsonResponse({'error': 'Received keys not found.'}, status=404)
+    
+    else:
+        return JsonResponse({
+            'error': 'DELETE request required.'
         }, status=400)
 
 

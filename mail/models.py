@@ -99,34 +99,46 @@ class PGPKey(models.Model):
         }
         
         
-class UserRecipientPublicKey(models.Model):
+class ReceivedPublicKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='public_keys')
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='public_keys_received')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='public_keys_received')
+    key_id = models.CharField(max_length=255, db_index=True, unique=True)
     public_key = models.TextField()
     expire_date = models.DateTimeField(db_index=True)
     
     class Meta:
-        db_table = 'mail_user_recipient_public_keys'
-        unique_together = ('user', 'recipient')
+        db_table = 'mail_received_public_keys'
+        unique_together = ('user', 'owner')
         indexes = [
-            models.Index(fields=['user', 'recipient']),  # Composite index
+            models.Index(fields=['user', 'owner']),  # Composite index
         ]
     
     def is_expired(self):
         return self.expire_date < timezone.now()
     
-    def serialize(self):
+    def serialize_detail(self):
         return {
-            'user': self.user.email,
-            'recipient': self.recipient.email,
+            'owner_first_name': self.owner.first_name,
+            'owner_last_name': self.owner.last_name,
+            'owner_email': self.owner.email,
+            'key_id': self.key_id,
             'public_key': self.public_key,
+            'expire_date': self.expire_date.strftime('%b %d %Y, %I:%M %p')
+        }
+    
+    def serialize_public(self):
+        return {
+            'owner_first_name': self.owner.first_name,
+            'owner_last_name': self.owner.last_name,
+            'owner_email': self.owner.email,
+            'key_id': self.key_id,
             'expire_date': self.expire_date.strftime('%b %d %Y, %I:%M %p')
         }
         
         
 class EmailPGPKey(models.Model):
     email = models.ForeignKey(Email, on_delete=models.CASCADE, related_name='public_keys')
-    recipient_public_key = models.ForeignKey(UserRecipientPublicKey, on_delete=models.CASCADE, related_name='emails')
+    recipient_public_key = models.ForeignKey(ReceivedPublicKey, on_delete=models.CASCADE, related_name='emails')
     sender_private_key = models.ForeignKey(PGPKey, on_delete=models.CASCADE, related_name='emails')
     
     class Meta:

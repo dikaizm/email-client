@@ -6,8 +6,8 @@ from django.http import JsonResponse
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from ..models import Email, PGPKey
-from .security import generate_key, user_keys, user_key_item
+from ..models import Email
+from .security import generate_key, user_keys, user_key_item, received_keys, received_key_item
 from .compose import compose
 from .auth import login_service, register_service
 from .email import get_email, decrypt_email
@@ -117,6 +117,18 @@ def user_keys_view(request):
 @login_required
 def user_key_item_view(request, key_id):
     return user_key_item(request, key_id)
+
+
+@csrf_exempt
+@login_required
+def received_keys_view(request):
+    return received_keys(request)
+
+
+@csrf_exempt
+@login_required
+def received_key_item_view(request, key_id):
+    return received_key_item(request, key_id)
 
 
 @csrf_exempt
