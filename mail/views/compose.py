@@ -113,7 +113,13 @@ def compose(request):
         is_key_exist = ReceivedPublicKey.objects.filter(key_id=public_key.key_id, owner=public_key.owner, user=public_key.user).first()
         # If not exists, create new
         if not is_key_exist:
-            pub_key = ReceivedPublicKey.objects.create(**public_key.__dict__)
+            pub_key = ReceivedPublicKey.objects.create(
+                user=public_key.user,
+                owner=public_key.owner,
+                key_id=public_key.key_id,
+                public_key=public_key.public_key,
+                expire_date=public_key.expire_date
+            )
             pub_key.save()
             
     
