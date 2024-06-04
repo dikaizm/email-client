@@ -102,7 +102,7 @@ class PGPKey(models.Model):
 class ReceivedPublicKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='public_keys')
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='public_keys_received')
-    key_id = models.CharField(max_length=255, db_index=True, unique=True)
+    key_id = models.CharField(max_length=255, db_index=True)
     public_key = models.TextField()
     expire_date = models.DateTimeField(db_index=True)
     
@@ -138,8 +138,8 @@ class ReceivedPublicKey(models.Model):
         
 class EmailPGPKey(models.Model):
     email = models.ForeignKey(Email, on_delete=models.CASCADE, related_name='public_keys')
-    recipient_public_key = models.ForeignKey(ReceivedPublicKey, on_delete=models.CASCADE, related_name='emails')
-    sender_private_key = models.ForeignKey(PGPKey, on_delete=models.CASCADE, related_name='emails')
+    recipient_public_key = models.ForeignKey(ReceivedPublicKey, on_delete=models.CASCADE, related_name='emails', null=True)
+    sender_public_key = models.ForeignKey(PGPKey, on_delete=models.CASCADE, related_name='emails', null=True)
     
     class Meta:
         db_table = 'mail_email_pgp_keys'
@@ -151,5 +151,5 @@ class EmailPGPKey(models.Model):
         return {
             'email': self.email.id,
             'recipient_public_key': self.recipient_public_key.public_key,
-            'sender_private_key': self.sender_private_key.private_key
+            'sender_public_key': self.sender_public_key.public_key
         }

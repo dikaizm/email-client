@@ -158,7 +158,6 @@ function load_security() {
     })
         .then(response => response.json())
         .then(result => {
-            console.log(result);
 
             if (result.error) {
                 const errorMsg = document.createElement('span')
@@ -617,33 +616,11 @@ function load_mailbox(mailbox) {
 
                 const encryptCondition = email.encrypted && (email.recipients != user);
 
+                const emailBody = email.body.length >= 99 ? `${email.body.slice(0, 99)} <a href='#'>(more...)</a>` : email.body.slice(0, 99);
+
                 let div = document.createElement('div');
                 div.className = `card my-1 items`;
-                if (email.body.length <= 99) {
-                    div.innerHTML = `
-                    <div class='card ${is_read}'>
-                        <div class='card-header ${is_read}'>
-                            <strong>${email.subject}</strong>
-                        </div>
-                        <div class='card-body ${is_read}' id='item-${email.id}'>
-                            <p class='card-title'>
-                                <strong>From:</strong> <strong>From:</strong> <strong><span class='text-info'>${email.sender}</span></strong> &nbsp; |  &nbsp; 
-                                <strong>To:</strong> <strong>From:</strong> <strong><span class='text-info'>${email.recipients}</span></strong> &nbsp; |  &nbsp;  
-                                <strong>Date:</strong> ${email.timestamp}
-                            </p>
-                            <p class='card-text'>
-                                ${encryptCondition ? email.body.slice(0, 99) : `
-                                    <i class='fas fa-lock'></i> Encrypted message
-                                `}
-                            </p>
-                            <a href='#' class='btn btn-primary'>
-                                <i class='fas fa-book-reader'></i> Read
-                            </a>
-                        </div>
-                    </div>
-                `;
-                } else {
-                    div.innerHTML = `
+                div.innerHTML = `
                     <div class='card ${is_read}'>
                         <div class='card-header ${is_read}'>
                             <strong>${email.subject}</strong>
@@ -655,9 +632,9 @@ function load_mailbox(mailbox) {
                                 <strong>Date:</strong> ${email.timestamp}
                             </p>
                             <p class='card-text'>
-                                ${encryptCondition ? (`${email.body.slice(0, 99)} <a href='#'>(more...)</a>`) : `
-                                    <i class='fas fa-lock'></i> Encrypted message
-                                `}
+                                ${encryptCondition ? (emailBody) : (email.encrypted ? `
+                                <i class='fas fa-lock'></i> Encrypted message
+                            ` : (emailBody))}
                             </p>
                             <a href='#' class='btn btn-primary'>
                                 <i class='fas fa-book-reader'></i> Read
@@ -665,7 +642,6 @@ function load_mailbox(mailbox) {
                         </div>
                     </div>
                 `;
-                }
 
                 document.querySelector('#emails-view').appendChild(div);
                 div.addEventListener('click', () => {
@@ -717,7 +693,7 @@ function view_email(email_id, mailbox) {
                     ${email.encrypted ? `
                         <div class='badge bg-info'>
                             <i class='fas fa-lock'></i>
-                            <span>This email is encrypted</span>
+                            <span>Encrypted email</span>
                         </div>
                     ` : ''}
                 `
@@ -757,7 +733,9 @@ function view_email(email_id, mailbox) {
 
             // Handle for read secured email
             let readSecuredMsgBtn = document.querySelector('#btn-read-secured-email');
-            readSecuredMsgBtn.addEventListener('click', () => handleReadSecuredMsg(email_id));
+            if (readSecuredMsgBtn) {
+                readSecuredMsgBtn.addEventListener('click', () => handleReadSecuredMsg(email_id));
+            }
 
             document.querySelector('#emails-view').appendChild(replyBtn);
             read(email_id);
@@ -930,7 +908,7 @@ function handleSubmitPassphrase(email_id) {
             `, `
                 <div class='badge bg-info'>
                     <i class='fas fa-lock'></i>
-                    <span>This email is encrypted</span>
+                    <span>Encrypted email</span>
                 </div>
             `);
 
@@ -999,8 +977,14 @@ function renderEmailView(email, element, flag = null) {
                 <div class='card-text' id='email-message'>
                     ${element}
                 </div>
-
+                
                 ${flag ? flag : ''}
+                ${email.signed ? `
+                    <div class='badge bg-success'>
+                        <i class='fas fa-signature'></i>
+                        <span>Signed email</span>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;

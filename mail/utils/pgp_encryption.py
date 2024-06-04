@@ -83,13 +83,13 @@ def encrypt_and_sign_message(message, recipient_public_key, sender_private_key, 
         # Unlock the sender's private key with the passphrase
         with priv_key.unlock(passphrase):
             # Create a PGPMessage object from the plaintext message
-            pgp_message = pgpy.PGPMessage.new(message)
+            msg = pgpy.PGPMessage.new(message)
             
             # Sign the message using the sender's private key
-            signed_message = priv_key.sign(pgp_message)
+            msg |= priv_key.sign(msg)
             
             # Encrypt the signed message with the recipient's public key
-            encrypted_message = pub_key.encrypt(signed_message)
+            encrypted_message = pub_key.encrypt(msg)
         
         return str(encrypted_message)
     

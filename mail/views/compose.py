@@ -23,6 +23,11 @@ def compose(request):
     # Convert email addresses to users
     recipients = []
     for email in emails:
+        if email == request.user.email:
+            return JsonResponse({
+                'error': 'Cannot send email to self.'
+            }, status=400)
+        
         try:
             user = User.objects.get(email=email)    
             recipients.append(user)
@@ -96,12 +101,21 @@ def compose(request):
             body=email_body,
             read=(user == request.user),
             encrypted=is_encrypt,
+            signed=is_sign,
         )
         emails_to_save.append(email)
     
     # Bulk create emails
     Email.objects.bulk_create(emails_to_save)
-    ReceivedPublicKey.objects.bulk_create(public_keys_to_save)
+    
+    # Save or update ReceivedPublicKey objects
+    for public_key in public_keys_to_save:
+        is_key_exist = ReceivedPublicKey.objects.filter(key_id=public_key.key_id, owner=public_key.owner, user=public_key.user).first()
+        # If not exists, create new
+        if not is_key_exist:
+            pub_key = ReceivedPublicKey.objects.create(**public_key.__dict__)
+            pub_key.save()
+            
     
     # Create recipient relationships
     for email in emails_to_save:
@@ -117,14 +131,18 @@ def compose(request):
             hmacs_to_save.append(hmac_record)
             
             for public_key in public_keys_to_save:
-                email_pgpkey = EmailPGPKey(email=email, recipient_public_key=public_key, sender_private_key=sender_key)
+                email_pgpkey = EmailPGPKey(email=email, recipient_public_key=public_key, sender_public_key=sender_key)
                 email_pgpkeys_to_save.append(email_pgpkey)
             
         # Bulk create HMACs
         EmailHMAC.objects.bulk_create(hmacs_to_save)
         
-        # Bulk create Email PGP Keys
-        EmailPGPKey.objects.bulk_create(email_pgpkeys_to_save)
+        # Create Email PGP Keys
+        for public_key in ReceivedPublicKey.objects.all():
+            is_key_exist = ReceivedPublicKey.objects.filter(pk=public_key.pk).exists()  # Check if key exists
+            if is_key_exist:
+                email_pgpkey = EmailPGPKey(email=email, recipient_public_key=public_key, sender_public_key=sender_key)
+                email_pgpkey.save()
     
 
     return JsonResponse({'message': 'Email sent successfully.'}, status=201)
