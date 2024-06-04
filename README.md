@@ -1,4 +1,4 @@
-# Email Client
+# Email Client with PGP Encryption and HMAC Authentication
 
 This is an email client that makes API calls to send and receive emails built using **Django 4**, **HTML 5**, **CSS 3**, **Bootstrap 5** with a **Bootswatch** theme, and vanilla **JavaScript**.
 
@@ -97,6 +97,14 @@ Go to http://127.0.0.1:8000/ to view the application.
 ### Note
 
 Just remember to send an email to an email address that already exists in the database.
+
+### Email Flowchart
+
+**Send Email**
+![image](https://github.com/dikaizm/email-client/assets/40682104/79531fd7-6c7e-49dc-8980-dc2dead67d53)
+
+**View Email**
+![image](https://github.com/dikaizm/email-client/assets/40682104/a21057c3-098d-47eb-a983-fce6119bb559)
 
 
 ### Copyright and License
