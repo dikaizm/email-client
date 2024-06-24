@@ -1,15 +1,20 @@
 import pgpy
 
 
+"""
+Fungsi ini mengenkripsi pesan plaintext menggunakan public key yang diberikan.
+Jika berhasil, fungsi mengembalikan pesan terenkripsi dalam bentuk string.
+Jika terjadi kesalahan, fungsi mengembalikan objek JSON dengan pesan error.
+"""
 def encrypt_message(message, public_key):
     try:
-        # Load public key
+        # Memuat public key
         public_key, _ = pgpy.PGPKey.from_blob(public_key)
         
-        # Create PGP message
+        # Membuat objek PGPMessage dari pesan
         pgp_message = pgpy.PGPMessage.new(message)
         
-        # Encrypt message
+        # Mengenkripsi pesan
         encrypted_message = public_key.encrypt(pgp_message)
         
         return str(encrypted_message)
@@ -18,14 +23,20 @@ def encrypt_message(message, public_key):
         return {"error": str(ve)}
 
 
+"""
+Fungsi ini mendekripsi pesan yang telah dienkripsi menggunakan private key yang diberikan 
+dan passphrase untuk membuka private key.
+Jika berhasil, fungsi mengembalikan objek JSON dengan pesan terdekripsi.
+Jika terjadi kesalahan, fungsi mengembalikan objek JSON dengan pesan error.
+"""
 def decrypt_message(encrypted_message, private_key, passphrase):
     try:
-        # Load private key
+        # Memuat private key
         private_key, _ = pgpy.PGPKey.from_blob(private_key)
         
-        # Unlock private key with passphrase
+        # Membuka kunci private key dengan passphrase
         with private_key.unlock(passphrase):
-            # Load encrypted message
+            # Memuat pesan terenkripsi
             enc_msg = pgpy.PGPMessage.from_blob(encrypted_message)
             decrypt_msg = private_key.decrypt(enc_msg)
             
@@ -35,29 +46,39 @@ def decrypt_message(encrypted_message, private_key, passphrase):
         return {"error": str(ve)}
 
 
+"""
+Fungsi ini menandatangani pesan plaintext menggunakan private key yang diberikan 
+dan passphrase untuk membuka private key.
+Fungsi mengembalikan pesan yang telah ditandatangani dalam bentuk string.
+"""
 def sign_message(message, private_key, passphrase):
-    # Load the private key
+    # Memuat private key
     priv_key, _ = pgpy.PGPKey.from_blob(private_key)
     
-    # Unlock the private key with the passphrase
+    # Membuka kunci private key dengan passphrase
     with priv_key.unlock(passphrase):
         # Create a PGPMessage object from the plaintext message
-        pgp_message = pgpy.PGPMessage.new(message)
+        msg = pgpy.PGPMessage.new(message)
         
-        # Sign the message
-        signed_message = priv_key.sign(pgp_message)
+        # Sign pesan menggunakan private key
+        msg |= priv_key.sign(msg)
     
-    return str(signed_message)
+    return str(msg)
 
 
+"""
+Fungsi ini memverifikasi pesan yang telah ditandatangani menggunakan public key pengirim yang diberikan.
+Jika tanda tangan valid, fungsi mengembalikan pesan dalam bentuk string.
+Jika verifikasi gagal, fungsi mengembalikan objek JSON dengan pesan error.
+"""
 def verify_message(signed_message, sender_public_key):
-    # Load the sender's public key
+    # Memuat public key pengirim
     pub_key, _ = pgpy.PGPKey.from_blob(sender_public_key)
     
-    # Load the signed message
+    # Memuat pesan
     signed_pgp_message = pgpy.PGPMessage.from_blob(signed_message)
     
-    # Verify the signature
+    # Memverifikasi signature pesan
     verification = pub_key.verify(signed_pgp_message)
     
     if verification:
@@ -68,27 +89,33 @@ def verify_message(signed_message, sender_public_key):
         return {"error": "Signature verification failed."}
 
 
+"""
+Fungsi ini mengenkripsi pesan plaintext menggunakan public key penerima yang diberikan,
+dan menandatangani pesan tersebut menggunakan private key pengirim dengan passphrase.
+Jika berhasil, fungsi mengembalikan pesan terenkripsi dalam bentuk string.
+Jika terjadi kesalahan, fungsi mengembalikan objek JSON dengan pesan error.
+"""
 def encrypt_and_sign_message(message, recipient_public_key, sender_private_key, passphrase):
     try:
-        # Load the recipient's public key
+        # Memuat public key penerima
         pub_key, _ = pgpy.PGPKey.from_blob(recipient_public_key)
         
-        # Check if the public key has the encryption flag
+        # Memeriksa apakah public key memiliki flag enkripsi
         if not any(uid.selfsig.key_flags & {pgpy.constants.KeyFlags.EncryptCommunications, pgpy.constants.KeyFlags.EncryptStorage} for uid in pub_key.userids):
-            raise ValueError("Recipient's public key is not valid for encryption.")
+            raise ValueError("public key penerima tidak valid untuk enkripsi.")
         
-        # Load the sender's private key
+        # Memuat private key pengirim
         priv_key, _ = pgpy.PGPKey.from_blob(sender_private_key)
         
-        # Unlock the sender's private key with the passphrase
+        # Membuka private key pengirim dengan passphrase
         with priv_key.unlock(passphrase):
-            # Create a PGPMessage object from the plaintext message
+            # Membuat objek PGPMessage dari pesan plaintext
             msg = pgpy.PGPMessage.new(message)
             
-            # Sign the message using the sender's private key
+            # Menandatangani pesan menggunakan private key pengirim
             msg |= priv_key.sign(msg)
             
-            # Encrypt the signed message with the recipient's public key
+            # Mengenkripsi pesan yang ditandatangani dengan public key penerima
             encrypted_message = pub_key.encrypt(msg)
         
         return str(encrypted_message)
@@ -97,20 +124,26 @@ def encrypt_and_sign_message(message, recipient_public_key, sender_private_key, 
         return {"error": str(ve)}
 
 
+"""
+Fungsi ini mendekripsi pesan yang dienkripsi menggunakan private key penerima,
+dan memverifikasi tanda tangan pesan tersebut menggunakan public key pengirim.
+Jika berhasil, fungsi mengembalikan pesan terenkripsi dalam bentuk json.
+Jika terjadi kesalahan, fungsi mengembalikan objek JSON dengan pesan error.
+"""
 def decrypt_and_verify_message(encrypted_message, recipient_private_key, passphrase, sender_public_key):
     try:
-        # Load the recipient's private key
+        # Memuat private key penerima
         priv_key, _ = pgpy.PGPKey.from_blob(recipient_private_key)
         
-        # Unlock the recipient's private key with the passphrase
+        # Membuka private keye key penerima dengan passphrase
         with priv_key.unlock(passphrase):
             # Decrypt the message
             decrypted_message = priv_key.decrypt(pgpy.PGPMessage.from_blob(encrypted_message))
             
-        # Load the sender's public key
+        # Memuat public key pengirim
         pub_key, _ = pgpy.PGPKey.from_blob(sender_public_key)
         
-        # Verify the signature
+        # Memverifikasi signature
         if pub_key.verify(decrypted_message):
             print("Signature is valid.")
             return {"message": str(decrypted_message.message)}

@@ -1,7 +1,8 @@
 import json
 import logging
 import pgpy
-from datetime import datetime, timedelta
+from datetime import timedelta
+from django.utils import timezone
 from pgpy.constants import PubKeyAlgorithm, KeyFlags, HashAlgorithm, SymmetricKeyAlgorithm, CompressionAlgorithm
 from django.http import JsonResponse
 from mail.models import PGPKey, ReceivedPublicKey
@@ -27,6 +28,31 @@ def user_key_item(request, key_id):
         try:
             pgp_key = PGPKey.objects.get(user=request.user, key_id=key_id)
             return JsonResponse(pgp_key.serialize_detail())
+        except PGPKey.DoesNotExist:
+            return JsonResponse({'error': 'PGP key not found.'}, status=404)
+        
+    # Update key as default
+    elif request.method == 'PUT':
+        try:
+            data = json.loads(request.body)
+            isDefault = data.get('default_key')
+            if isDefault is None:
+                return JsonResponse({'error': 'Default key value required.'}, status=400)
+            
+            # Set all keys as non-default except the one being updated
+            pgp_key = PGPKey.objects.get(user=request.user, key_id=key_id)
+            
+            # If key is expired, do not set as default
+            if pgp_key.is_expired():
+                return JsonResponse({'error': 'Key has expired.'}, status=400)
+            
+            pgp_key.default_key = isDefault
+            pgp_key.save()
+            
+            PGPKey.objects.filter(user=request.user).exclude(key_id=key_id).update(default_key=False)
+            
+            return JsonResponse({'message': 'PGP key updated successfully.'})
+            
         except PGPKey.DoesNotExist:
             return JsonResponse({'error': 'PGP key not found.'}, status=404)
         
@@ -161,9 +187,9 @@ def generate_key(request):
                 encrypt=encrypt,
                 sign=sign,
                 passphrase=passphrase, 
-                expire_date=datetime.now() + timedelta(days=expiration), 
+                expire_date=timezone.now() + timedelta(days=expiration), 
                 default_key=default_key,
-                created=datetime.now()
+                created=timezone.now()
             )
             pgp_key.save()
             

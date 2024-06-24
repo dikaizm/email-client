@@ -383,7 +383,13 @@ function user_key_detail(data) {
 
     const div = document.createElement('div')
     div.innerHTML = `
-        <h3 class='mb-4'>Key Details</h3>
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class='mb-4'>Key Details</h3>
+            ${!data.default_key ? `<button type="button" id="btn-set-default-key" class='btn btn-primary' style="height: fit-content">
+                Set as default
+            </button>` : ''}
+        </div>
+        
         <table class="table table-sm">
             <thead>
                 <tr>
@@ -398,8 +404,25 @@ function user_key_detail(data) {
     `;
 
     securityView.appendChild(div);
-}
 
+    const setDefaultKeyBtn = document.getElementById('btn-set-default-key');
+    setDefaultKeyBtn.addEventListener('click', () => {
+        console.log('click btn default key')
+
+        fetch(`/api/security/keys/${data.key_id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                default_key: true
+            }),
+        }).then(res => {
+            if (!res.ok) return alert('Failed to set default key');
+            return res.json();
+        }).then(data => {
+            console.log(data);
+            load_security();
+        })
+    }) 
+}
 
 /**
  * 
@@ -662,6 +685,7 @@ function view_email(email_id, mailbox) {
     fetch(`/emails/${email_id}`)
         .then(response => response.json())
         .then(email => {
+            console.log(email);
 
             // Get cookie user email
             let user = getCookie('user_email')
@@ -775,9 +799,41 @@ function send_email() {
                     document.querySelector('#compose-to-error').innerHTML = '';
                 }
 
+                const composeError = document.querySelector('#compose-to-error');
+
+                if (result.flag === 'pgp_expire' || result.flag === 'pgp_404') {
+                    // Create request button
+                    const reqBtn = document.createElement('button')
+                    reqBtn.id = 'btn-request-key'
+                    reqBtn.className = 'cst-badge cst-badge-pill cst-badge-warning'
+                    reqBtn.textContent = 'Request Key'
+                    composeError.appendChild(reqBtn)
+
+                    reqBtn.addEventListener('click', () => {
+                        fetch('/api/security/request-key', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                recipient: result.recipient,
+                                flag: result.flag
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(reqKeyData => {
+                            if (reqKeyData.error) {
+                                alert(reqKeyData.error)
+                                return
+                            }
+
+                            alert(reqKeyData.message)
+                            // Hapus error message
+                            composeError.innerHTML = '';
+                        })
+                    })
+                }
+
                 const errorMsg = document.createElement('span')
                 errorMsg.textContent = result.error
-                document.querySelector('#compose-to-error').appendChild(errorMsg)
+                composeError.appendChild(errorMsg)
                 return
             }
 

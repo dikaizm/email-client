@@ -6,10 +6,17 @@ from ..utils.pgp_encryption import decrypt_message, decrypt_and_verify_message, 
 from ..utils.hmac_auth import verify_hmac
 
 
-def get_email(request, email):
-    # Hide email body if email is encrypted
-    # if email.encrypted and (request.user not in email.recipients.all()):
-    #     email.body = ''
+def get_email(request, id, email):
+    if email.signed:
+        email_pgp_key = EmailPGPKey.objects.filter(email=id).first()
+        if email_pgp_key is None:
+            return JsonResponse({'error': 'Email PGP key not found.'}, status=400)
+        
+        msg = verify_message(email.body, email_pgp_key.sender_public_key.public_key)
+        if msg.get('error') is not None:
+            return JsonResponse({'error': f'Failed to decrypt message: {msg.get("error")}'}, status=400)
+            
+        email.body = msg
     
     return JsonResponse(email.serialize())
 

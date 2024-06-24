@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from ..models import Email
 from .security import generate_key, user_keys, user_key_item, received_keys, received_key_item
-from .compose import compose
+from .compose import compose, request_key
 from .auth import login_service, register_service
 from .email import get_email, decrypt_email
 
@@ -42,6 +42,12 @@ def register_view(request):
 @login_required
 def compose_view(request):
     return compose(request)
+
+
+@csrf_exempt
+@login_required
+def request_key_view(request):
+    return request_key(request)
 
 
 @login_required
@@ -80,7 +86,7 @@ def email(request, email_id):
 
     # Return email contents
     if request.method == 'GET':
-        return get_email(request, email)
+        return get_email(request, email_id, email)
 
     # Update whether email is read or should be archived
     elif request.method == 'PUT':

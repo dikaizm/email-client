@@ -61,7 +61,7 @@ def compose(request):
     if is_encrypt or is_sign:
         for user in recipients:
             try:
-                recipient_key = PGPKey.objects.get(user=user)
+                recipient_key = PGPKey.objects.get(user=user, default_key=True)
                 pub_key = ReceivedPublicKey(
                     user=request.user,
                     owner=user,
@@ -71,8 +71,19 @@ def compose(request):
                 )
                 public_keys_to_save.append(pub_key)
                 
+                if pub_key.is_expired():
+                    return JsonResponse({
+                        'error': f'PGP key for user {user.email} has expired!', 
+                        'flag': 'pgp_expire', 
+                        'recipient': f'{user.email}'
+                    }, status=400)
+                
             except PGPKey.DoesNotExist:
-                return JsonResponse({'error': f'PGP key for user {user.email} not found!'}, status=400)
+                return JsonResponse({
+                    'error': f'PGP key for user {user.email} not found!', 
+                    'flag': 'pgp_404', 
+                    'recipient': f'{user.email}'
+                }, status=400)
             
             if is_encrypt and is_sign:
                 secured_body = encrypt_and_sign_message(combined_body, recipient_key.public_key, sender_key.private_key, passphrase)
@@ -152,3 +163,52 @@ def compose(request):
     
 
     return JsonResponse({'message': 'Email sent successfully.'}, status=201)
+
+
+"""
+Fungsi ini meng-handle permintaan untuk mengirim email kepada pengguna terkait kunci PGP.
+Memvalidasi method request dan format JSON, mencari pengguna berdasarkan email, 
+dan menentukan isi email berdasarkan flag yang diterima. Setelah itu, fungsi membuat dan 
+menyimpan email dalam database sebelum mengirimkan respons sukses.
+"""
+def request_key(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST request required.'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON.'}, status=400)
+    
+    recipient = data.get('recipient')
+    flag = data.get('flag')
+    if not recipient or not flag:
+        return JsonResponse({'error': 'Recipient email or flag required.'}, status=400)
+    
+    try:
+        user = User.objects.get(email=recipient)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Recipient not found.'}, status=404)
+    
+    # Determine the email body based on the flag
+    if flag == 'pgp_expire':
+        body = 'Your PGP key has expired. Please update your PGP key.'
+    elif flag == 'pgp_404':
+        body = 'Your PGP key has not been found. Please create a PGP key.'
+    else:
+        return JsonResponse({'error': 'Invalid flag.'}, status=400)
+
+    # Kirim request ke email user
+    email = Email(
+        user=user,
+        sender=request.user,
+        subject='Request for PGP Public Key',
+        body=body,
+        read=False,
+        encrypted=False,
+        signed=False
+    )
+    email.save()
+    email.recipients.add(user)
+
+    return JsonResponse({'message': 'Request key message sent successfully.'}, status=200)

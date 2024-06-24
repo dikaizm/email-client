@@ -1,31 +1,57 @@
 #login {
-    width: 22rem !important;
+  width: 22rem !important;
 }
 
 #register {
-    width: 22rem !important;
+  width: 22rem !important;
 }
 
 textarea {
-    min-height: 300px;
+  min-height: 300px;
 }
 
 .read {
-    background-color: #3c3c3c; 
-    color: #fff;
-    border-color: #a2acb4;
+  background-color: #3c3c3c;
+  color: #fff;
+  border-color: #a2acb4;
 }
 
 .unread {
-    background-color: #2a2a2a; 
-    color: #fff;
-    border-color: #2b5172;
+  background-color: #2a2a2a;
+  color: #fff;
+  border-color: #2b5172;
 }
 
 .items {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .h-half {
-    height: 50vh;
+  height: 50vh;
+}
+
+/* Basic badge styling */
+.cst-badge {
+  display: inline-block;
+  padding: 0.25em 0.4em;
+  font-size: 75%;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+}
+
+/* Pill badge styling */
+.cst-badge-pill {
+  padding-right: 0.6em;
+  padding-left: 0.6em;
+  border-radius: 10rem;
+}
+
+/* Warning badge styling */
+.cst-badge-warning {
+  color: #212529;
+  background-color: #ffc107;
 }

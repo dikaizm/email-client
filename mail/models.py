@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.db import models
+import pytz
 
 
 class User(AbstractUser):
@@ -21,13 +22,16 @@ class Email(models.Model):
     signed = models.BooleanField(default=False)
 
     def serialize(self):
+        tz = pytz.timezone('Asia/Bangkok')
+        timestamp_date = self.timestamp.astimezone(tz)
+        
         return {
             'id': self.id,
             'sender': self.sender.email,
             'recipients': [user.email for user in self.recipients.all()],
             'subject': self.subject,
             'body': self.body,
-            'timestamp': self.timestamp.strftime('%b %d %Y, %I:%M %p'),
+            'timestamp': timestamp_date.strftime('%b %d %Y, %I:%M %p'),
             'read': self.read,
             'archived': self.archived,
             'encrypted': self.encrypted,
@@ -74,6 +78,10 @@ class PGPKey(models.Model):
         return self.expire_date < timezone.now()
 
     def serialize_detail(self):
+        tz = pytz.timezone('Asia/Bangkok')
+        expire_date = self.expire_date.astimezone(tz)
+        created_date = self.created.astimezone(tz)
+        
         return {
             'key_id': self.key_id,
             'private_key': getattr(self, 'private_key', None),
@@ -82,20 +90,24 @@ class PGPKey(models.Model):
             'encrypt': getattr(self, 'encrypt', None),
             'sign': getattr(self, 'sign', None),
             'passphrase': getattr(self, 'passphrase', None),
-            'expire_date': self.expire_date.strftime('%b %d %Y, %I:%M %p'),
+            'expire_date': expire_date.strftime('%b %d %Y, %I:%M %p'),
             'default_key': self.default_key,
-            'created': self.created.strftime('%b %d %Y, %I:%M %p')
+            'created': created_date.strftime('%b %d %Y, %I:%M %p')
         }
         
     def serialize_public(self):
+        tz = pytz.timezone('Asia/Bangkok')
+        expire_date = self.expire_date.astimezone(tz)
+        created_date = self.created.astimezone(tz)
+        
         return {
             'key_id': self.key_id,
             'key_size': getattr(self, 'key_size', None),
             'encrypt': getattr(self, 'encrypt', None),
             'sign': getattr(self, 'sign', None),
-            'expire_date': self.expire_date.strftime('%b %d %Y, %I:%M %p'),
+            'expire_date': expire_date.strftime('%b %d %Y, %I:%M %p'),
             'default_key': self.default_key,
-            'created': self.created.strftime('%b %d %Y, %I:%M %p')
+            'created': created_date.strftime('%b %d %Y, %I:%M %p')
         }
         
         
