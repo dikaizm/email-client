@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.db import models
@@ -59,6 +60,7 @@ class UserOAuthToken(models.Model):
     access_token = models.TextField()
     refresh_token = models.TextField()
     expires_in = models.IntegerField()
+    expires_at = models.DateTimeField()
     token_type = models.CharField(max_length=255)
     created = models.DateTimeField(auto_now_add=True)
     
@@ -74,13 +76,23 @@ class UserOAuthToken(models.Model):
             'access_token': self.access_token,
             'refresh_token': self.refresh_token,
             'expires_in': self.expires_in,
+            'expires_at': self.expires_at.strftime('%b %d %Y, %I:%M %p'),
             'token_type': self.token_type,
             'created': self.created.strftime('%b %d %Y, %I:%M %p')
         }
         
     def create_token(user, token):
-        token = UserOAuthToken.objects.create(user=user, **token)
-        token.save()
+        expires_at = datetime.fromtimestamp(token["expires_at"])
+        
+        token = UserOAuthToken.objects.create(
+            user=user,
+            id_token=token["id_token"],
+            access_token=token["access_token"],
+            refresh_token=token["refresh_token"],
+            expires_in=token["expires_in"],
+            token_type=token["token_type"],
+            expires_at=expires_at
+        )
         return token
 
 

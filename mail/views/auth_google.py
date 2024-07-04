@@ -68,10 +68,10 @@ class GoogleLoginApi(View):
         if user is None:
             return render(request, 'login.html', {'message': 'User not found.'})
 
-        # Activate user if successfully authenticated
-        user.activate_user()
         # Save OAuth token
         UserOAuthToken.create_token(user, google_tokens.payload_token)
+        # Activate user if successfully authenticated
+        user.activate_user()
 
         login(request, user)
 
