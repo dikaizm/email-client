@@ -6,6 +6,8 @@ from django.http import JsonResponse
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+
+from mail.views.compose2 import compose2, is_recipient_has_pubkey
 from ..models import Email
 from .security import generate_key, user_keys, user_key_item, received_keys, received_key_item
 from .compose import compose, request_key
@@ -45,7 +47,34 @@ def logout_view(request):
 @csrf_exempt
 @login_required
 def compose_view(request):
-    return compose(request)
+    # return compose(request)
+    return render(request, 'compose.html')
+
+
+@csrf_exempt
+@login_required
+def compose2_api(request):
+    if request.method == 'POST':
+        return compose2(request)
+    else:
+        return JsonResponse({
+            'error': 'POST request required.'
+        }, status=400)
+
+
+@csrf_exempt
+@login_required
+def find_recipient_pubkey_api(request, email):
+    if request.method != 'GET':
+        return JsonResponse({
+            'error': 'GET request required.'
+        }, status=400)
+    
+    res = is_recipient_has_pubkey(email)
+    if not res.success:
+        return JsonResponse({'success': res.success, 'error': f"{email} {res.error}"}, status=res.status)
+    
+    return JsonResponse({'success': res.success, 'message': f"{email} has valid public key"}, status=res.status)
 
 
 @csrf_exempt

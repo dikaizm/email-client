@@ -1,0 +1,31 @@
+<div class="container">
+  <h2>{{ request.user.email }}</h2>
+
+  <div class="row">
+    <div class="col">
+      <a href="{% url 'compose' %}" class="btn btn-danger" id="compose">
+        <i class="fas fa-plus-square"></i> Compose
+      </a>
+    </div>
+    <div class="col-9">
+      <button class="btn btn-sm btn-outline-info" id="inbox">
+        <i class="fas fa-inbox"></i> Inbox
+      </button>
+      <button class="btn btn-sm btn-outline-info" id="sent">
+        <i class="fas fa-paper-plane"></i> Sent
+      </button>
+      <button class="btn btn-sm btn-outline-info" id="archived">
+        <i class="fas fa-folder-open"></i> Archived
+      </button>
+      <button class="btn btn-sm btn-outline-info" id="security">
+        <i class="fas fa-shield-alt"></i> Security
+      </button>
+      <span class="ms-5">
+        <a class="btn btn-sm btn-outline-light" href="{% url 'logout' %}">
+          <i class="fas fa-sign-out-alt"></i> Log Out
+        </a>
+      </span>
+    </div>
+  </div>
+  <hr />
+</div>
