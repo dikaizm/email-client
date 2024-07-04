@@ -1,12 +1,18 @@
 from django.urls import path
 
 from .views import index
+from .views import auth_google
 
 urlpatterns = [
     path('', index.index, name='index'),
     path('login', index.login_view, name='login'),
+    path('login/oauth/callback', auth_google.GoogleLoginApi.as_view(), name='google-login-callback'),
+    path('login/oauth/redirect', auth_google.GoogleLoginRedirectApi.as_view(), name='google-login-redirect'),
+    
+    path('api/auth/email-validation', index.email_validation_api, name='email_validation'),
+    
     path('logout', index.logout_view, name='logout'),
-    path('register', index.register_view, name='register'),
+    # path('register', index.register_view, name='register'),
 
     # API Routes
     # Emails

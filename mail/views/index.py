@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from ..models import Email
 from .security import generate_key, user_keys, user_key_item, received_keys, received_key_item
 from .compose import compose, request_key
-from .auth import login_service, register_service
+from .auth import login_service, email_validation_srv
 from .email import get_email, decrypt_email
 
 
@@ -29,13 +29,17 @@ def login_view(request):
     return login_service(request)
 
 
+def email_validation_api(request):
+    return email_validation_srv(request)
+
+
 def logout_view(request):
     logout(request)
     return HttpResponseRedirect(reverse('index'))
 
 
-def register_view(request):
-    return register_service(request)
+# def register_view(request):
+#     return register_service(request)
 
 
 @csrf_exempt

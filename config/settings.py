@@ -10,6 +10,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-5475(xq9zgo@%-35v^wvuz*qabk)v21p=zxoq&f=94n88usz*!'
 
+GOOGLE_OAUTH2_CLIENT_ID = '590573173268-jekrpf6vqe21ks5na2rbsps0q5nt34kk.apps.googleusercontent.com'
+GOOGLE_OAUTH2_CLIENT_SECRET = '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'
+GOOGLE_OAUTH2_PROJECT_ID = 'ayu-email-client'
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -18,6 +22,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
 ]
 
+BASE_BACKEND_URL = 'http://localhost:8000'
+BASE_FRONTEND_URL = 'http://localhost:8000'
 
 # Application definition
 

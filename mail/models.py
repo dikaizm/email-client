@@ -7,6 +7,81 @@ import pytz
 class User(AbstractUser):
     def __str__(self):
         return f'{self.username}'
+    
+    def get_user_by_email(email):
+        try:
+            return User.objects.get(email=email)
+        except User.DoesNotExist:
+            return None
+        
+    def create_user(email, password, first_name=None, last_name=None, **extra_fields):
+        user = User.objects.create_user(email, email, password, first_name=first_name, last_name=last_name, **extra_fields)
+        user.save()
+        return user
+    
+    def activate_user(self):
+        self.is_active = True
+        self.save()
+        return self
+
+
+class UserConfig(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='config')
+    incoming_server = models.CharField(max_length=255)
+    incoming_port = models.IntegerField()
+    incoming_security = models.CharField(max_length=255)
+    outgoing_server = models.CharField(max_length=255)
+    outgoing_port = models.IntegerField()
+    outgoing_security = models.CharField(max_length=255)
+    created = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'mail_user_configs'
+        indexes = [
+            models.Index(fields=['user']),
+        ]
+        
+    def serialize(self):
+        return {
+            'incoming_server': self.incoming_server,
+            'incoming_port': self.incoming_port,
+            'incoming_security': self.incoming_security,
+            'outgoing_server': self.outgoing_server,
+            'outgoing_port': self.outgoing_port,
+            'outgoing_security': self.outgoing_security,
+            'created': self.created.strftime('%b %d %Y, %I:%M %p')
+        }
+
+
+class UserOAuthToken(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='oauth_token')
+    id_token = models.TextField()
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    expires_in = models.IntegerField()
+    token_type = models.CharField(max_length=255)
+    created = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'mail_user_oauth_tokens'
+        indexes = [
+            models.Index(fields=['user']),
+        ]
+        
+    def serialize(self):
+        return {
+            'id_token': self.id_token,
+            'access_token': self.access_token,
+            'refresh_token': self.refresh_token,
+            'expires_in': self.expires_in,
+            'token_type': self.token_type,
+            'created': self.created.strftime('%b %d %Y, %I:%M %p')
+        }
+        
+    def create_token(user, token):
+        token = UserOAuthToken.objects.create(user=user, **token)
+        token.save()
+        return token
 
 
 class Email(models.Model):
