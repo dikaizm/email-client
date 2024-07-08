@@ -16,7 +16,7 @@ urlpatterns = [
 
     # API Routes
     # Emails
-    path('compose', index.compose_view, name='compose'),
+    path('emails', index.compose_view, name='compose'),
     path('api/email/find-pubkey/<str:email>', index.find_recipient_pubkey_api, name='find_recipient_pubkey'),
     
     path('emails/<int:email_id>', index.email, name='email'),

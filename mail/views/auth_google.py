@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
@@ -73,6 +73,7 @@ class GoogleLoginApi(View):
         # Activate user if successfully authenticated
         user.activate_user()
 
+        user = authenticate(request, username=user_email, is_active=True)
         login(request, user)
 
         result = {
