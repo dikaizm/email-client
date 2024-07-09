@@ -68,8 +68,15 @@ class GoogleLoginApi(View):
         if user is None:
             return render(request, 'login.html', {'message': 'User not found.'})
 
-        # Save OAuth token
-        UserOAuthToken.create_token(user, google_tokens.payload_token)
+        # Check if oauth token already exists
+        oauthToken = UserOAuthToken.get_token(user)
+        if oauthToken is not None:
+            # Update OAuth token
+            oauthToken.update_token(user, google_tokens.payload_token)
+        else:
+            # Save OAuth token
+            UserOAuthToken.create_token(user, google_tokens.payload_token)
+            
         # Activate user if successfully authenticated
         user.activate_user()
 
@@ -83,6 +90,6 @@ class GoogleLoginApi(View):
 
         # Save cookie for user email
         response = redirect("index")
-        response = auth.save_cookie(response, 'user_email', user.email)
+        response = auth.save_cookie(response, 'user_email', user_email)
 
         return response

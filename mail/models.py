@@ -94,6 +94,25 @@ class UserOAuthToken(models.Model):
             expires_at=expires_at
         )
         return token
+    
+    def get_token(user):
+        try:
+            return UserOAuthToken.objects.get(user=user)
+        except UserOAuthToken.DoesNotExist:
+            return None
+        
+    def update_token(user, newToken):
+        token = UserOAuthToken.get_token(user)
+        expires_at = datetime.fromtimestamp(newToken["expires_at"])
+        
+        token.id_token = newToken["id_token"]
+        token.access_token = newToken["access_token"]
+        token.refresh_token = newToken["refresh_token"]
+        token.expires_in = newToken["expires_in"]
+        token.token_type = newToken["token_type"]
+        token.expires_at = expires_at
+        token.save()
+        return token
 
 
 class Email(models.Model):
