@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.db import models
 import pytz
 
+from google.oauth2.credentials import Credentials
 
 class User(AbstractUser):
     def __str__(self):
@@ -63,6 +64,7 @@ class UserOAuthToken(models.Model):
     expires_at = models.DateTimeField()
     token_type = models.CharField(max_length=255)
     created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'mail_user_oauth_tokens'
@@ -71,6 +73,10 @@ class UserOAuthToken(models.Model):
         ]
         
     def serialize(self):
+        # tz = pytz.timezone('Asia/Bangkok')
+        # created_f = self.created.astimezone(tz)
+        # expires_at_f = self.expires_at.astimezone(tz)
+        
         return {
             'id_token': self.id_token,
             'access_token': self.access_token,
@@ -101,16 +107,11 @@ class UserOAuthToken(models.Model):
         except UserOAuthToken.DoesNotExist:
             return None
         
-    def update_token(user, newToken):
+    def update_token(user, newToken: Credentials):
         token = UserOAuthToken.get_token(user)
-        expires_at = datetime.fromtimestamp(newToken["expires_at"])
-        
-        token.id_token = newToken["id_token"]
-        token.access_token = newToken["access_token"]
-        token.refresh_token = newToken["refresh_token"]
-        token.expires_in = newToken["expires_in"]
-        token.token_type = newToken["token_type"]
-        token.expires_at = expires_at
+
+        token.refresh_token = newToken.refresh_token
+        token.expires_at = newToken.expiry
         token.save()
         return token
 
@@ -165,8 +166,8 @@ class EmailHMAC(models.Model):
 
 class PGPKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pgp_keys')
-    # key_id = models.CharField(max_length=255, db_index=True, unique=True, null=True, blank=True)
     key_id = models.CharField(max_length=255, db_index=True, unique=True)
+    fingerprint = models.TextField()
     private_key = models.TextField()
     public_key = models.TextField()
     key_size = models.IntegerField(default=0)
@@ -190,6 +191,7 @@ class PGPKey(models.Model):
         
         return {
             'key_id': self.key_id,
+            'fingerprint': getattr(self, 'fingerprint', None),
             'private_key': getattr(self, 'private_key', None),
             'public_key': getattr(self, 'public_key', None),
             'key_size': getattr(self, 'key_size', None),

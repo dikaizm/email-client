@@ -7,7 +7,10 @@ from attrs import define
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.urls import reverse_lazy
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 
+from mail.models import User, UserOAuthToken
 
 @define
 class GoogleSdkLoginCredentials:
@@ -139,3 +142,30 @@ def google_sdk_login_get_credentials() -> GoogleSdkLoginCredentials:
     credentials = GoogleSdkLoginCredentials(client_id=client_id, client_secret=client_secret, project_id=project_id)
 
     return credentials
+
+
+def oauth_get_credentials(user: User):
+    try:        
+        # Find oauth cred by user
+        oauth_token = UserOAuthToken.get_token(user).serialize()
+        api_creds = google_sdk_login_get_credentials()
+        
+        oauth_token['client_id'] = api_creds.client_id
+        oauth_token['client_secret'] = api_creds.client_secret
+        oauth_token['project_id'] = api_creds.project_id
+        
+        creds = Credentials.from_authorized_user_info(oauth_token)
+    except UserOAuthToken.DoesNotExist:
+        raise ValidationError("User has no oauth token.")
+    
+    # print(creds.to_json())
+    
+    if creds and creds.valid:
+        pass
+    
+    elif creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        # Save the new token
+        UserOAuthToken.update_token(user, creds)
+        
+    return creds

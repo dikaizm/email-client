@@ -5,7 +5,9 @@ from datetime import timedelta
 from django.utils import timezone
 from pgpy.constants import PubKeyAlgorithm, KeyFlags, HashAlgorithm, SymmetricKeyAlgorithm, CompressionAlgorithm
 from django.http import JsonResponse
+import requests
 from mail.models import PGPKey, ReceivedPublicKey
+from mail.utils.response import ServiceResponse
 
 logger = logging.getLogger('app_api') #from LOGGING.loggers in settings.py
 
@@ -177,10 +179,16 @@ def generate_key(request):
         if count_keys == 0:
             default_key = True
         
+        # Upload public key to keyserver
+        vks_openpgp = vks_upload_key(user.email, str(key.pubkey))
+        if not vks_openpgp.success:
+            return JsonResponse({'error': vks_openpgp.error}, status=400)
+        
         try:
             pgp_key = PGPKey.objects.create(
                 key_id=str(key.fingerprint),
-                user=user, 
+                fingerprint=vks_openpgp.data.key_fpr,
+                user=user,
                 public_key=str(key.pubkey), 
                 private_key=str(key),
                 key_size=key_size,
@@ -202,3 +210,63 @@ def generate_key(request):
         return JsonResponse({
             'error': 'POST request required.'
         }, status=400)
+        
+        
+        
+class VKSResponse:
+    def __init__(self, key_fpr, status, token):
+        self.key_fpr = key_fpr
+        self.status = status
+        self.token = token
+        
+    @classmethod
+    def from_json(cls, data):
+        return cls(
+            key_fpr=data.get('key_fpr'),
+            status=data.get('status'),
+            token=data.get('token')
+        )
+
+
+# Upload public key to keyserver
+def vks_upload_key(email: str, public_key: str) -> ServiceResponse:
+    # Send POST request to keyserver
+    try:
+        res = requests.post(
+            'https://keys.openpgp.org/vks/v1/upload',
+            data=json.dumps({'keytext': public_key}), 
+            headers={'Content-Type': 'application/json'}
+        )
+        if res.status_code == 200:
+            upload_res = VKSResponse.from_json(res.json())
+            
+            res_verify = vks_request_verify(email=email, token=upload_res.token)
+            return res_verify
+        else:
+            return ServiceResponse(success=False, error='Failed to upload key to keyserver.', status=400)
+    except Exception as e:
+        logger.error(f'Failed to upload key to keyserver: {str(e)}')
+        return ServiceResponse(success=False, error=f'Failed to upload key to keyserver: {str(e)}', status=400)
+    
+    
+# Send email to verify key
+def vks_request_verify(email: str, token: str) -> ServiceResponse:
+    # Send POST request to keyserver
+    try:
+        res = requests.post(
+            'https://keys.openpgp.org/vks/v1/request-verify',
+            data=json.dumps({
+                'token': token,
+                'addresses': [email],
+                'locale': ['en_US']
+            }),
+            headers={'Content-Type': 'application/json'}
+        )
+        if res.status_code == 200:
+            verify_res = VKSResponse.from_json(res.json())
+            return ServiceResponse(success=True, data=verify_res, status=200)
+        else:
+            return ServiceResponse(success=False, error='Failed to verify key on keyserver.', status=400)
+    except Exception as e:
+        logger.error(f'Failed to verify key on keyserver: {str(e)}')
+        return ServiceResponse(success=False, error=f'Failed to verify key on keyserver: {str(e)}', status=400)

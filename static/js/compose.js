@@ -39,8 +39,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const hasPublicKey = await isRecipientHasPublicKey(recipient);
 
-        console.log(hasPublicKey);
-
         const recipientMsg = document.getElementById('recipient-msg');
         recipientMsg.innerHTML = '';
         recipientMsg.classList.remove('text-success', 'text-danger');
@@ -54,10 +52,94 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 2000); // 2000ms debounce
 
-    composeRecipients.addEventListener('change', debouncedInputHandler);
+    composeRecipients.addEventListener('change', () => {
+        const isEncrypt = document.getElementById('compose-encrypt').checked;
+        const isSign = document.getElementById('compose-sign').checked;
+
+        if (isEncrypt || isSign) {
+            debouncedInputHandler();
+        }
+    });
 });
 
 
 /**
  * Compose an email
  */
+document.addEventListener('DOMContentLoaded', function () {
+
+    async function sendEmail(event) {
+        event.preventDefault();
+
+        const recipients = document.getElementById('compose-recipients').value;
+        const subject = document.getElementById('compose-subject').value;
+        const body = document.getElementById('compose-body').value;
+        const isEncrypt = document.getElementById('compose-encrypt').checked;
+        const isSign = document.getElementById('compose-sign').checked;
+        const passphrase = document.getElementById('compose-passphrase') ? document.getElementById('compose-passphrase').value : '';
+
+        const emailData = {
+            recipients: recipients,
+            subject: subject,
+            body: body,
+            encrypt: isEncrypt,
+            sign: isSign,
+            passphrase: passphrase
+        };
+
+        try {
+            const response = await fetch('/api/email/send', {
+                method: 'POST',
+                body: JSON.stringify(emailData),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            console.log(data);
+
+            if (!data.success) {
+                const composeError = document.getElementById('compose-error');
+                composeError.innerHTML = '';
+
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger';
+                alert.innerHTML = data.error;
+                composeError.appendChild(alert);
+            }
+
+        } catch (error) {
+            console.error('Error sending email:', error);
+        }
+    }
+
+    const signCheckbox = document.getElementById('compose-sign');
+    if (signCheckbox) {
+        signCheckbox.addEventListener('change', function () {
+            const passphraseWrapper = document.getElementById('passphrase-input');
+            
+            const passphraseInput = document.createElement('input');
+            passphraseInput.type = 'password';
+            passphraseInput.id = 'compose-passphrase';
+            passphraseInput.className = 'form-control';
+            passphraseInput.placeholder = 'Your key passphrase';
+
+            passphraseInput.addEventListener('input', function() {
+                const composeError = document.getElementById('compose-error');
+                composeError.innerHTML = '';
+            })
+
+            if (document.querySelector('#compose-sign').checked) {
+                passphraseWrapper.appendChild(passphraseInput);
+            } else {
+                passphraseWrapper.innerHTML = '';
+            }
+        });
+    }
+
+    const composeForm = document.getElementById('compose-form');
+    if (composeForm) {
+        composeForm.addEventListener('submit', (event) => sendEmail(event));
+    }
+})

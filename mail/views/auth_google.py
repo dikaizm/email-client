@@ -80,16 +80,18 @@ class GoogleLoginApi(View):
         # Activate user if successfully authenticated
         user.activate_user()
 
-        user = authenticate(request, username=user_email, is_active=True)
-        login(request, user)
+        return render(request, 'login.html', {'message': 'User registered successfully.', 'success': True})
 
-        result = {
-            "id_token_decoded": id_token_decoded,
-            "user_info": user_info,
-        }
+        # user = authenticate(request, username=user_email, is_active=True)
+        # login(request, user)
+        
+        # result = {
+        #     "id_token_decoded": id_token_decoded,
+        #     "user_info": user_info,
+        # }
 
         # Save cookie for user email
-        response = redirect("index")
-        response = auth.save_cookie(response, 'user_email', user_email)
+        # response = redirect("index")
+        # response = auth.save_cookie(response, 'user_email', user_email)
 
-        return response
+        # return response

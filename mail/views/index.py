@@ -47,8 +47,8 @@ def logout_view(request):
 @csrf_exempt
 @login_required
 def compose_view(request):
-    return compose(request)
-    # return render(request, 'compose.html')
+    # return compose(request)
+    return render(request, 'compose.html')
 
 
 @csrf_exempt
