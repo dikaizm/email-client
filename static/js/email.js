@@ -180,7 +180,9 @@ function handleSubmitPassphrase(email_id) {
     let passphraseValue = document.querySelector('#email-secured-passphrase').value;
 
     if (!passphraseValue) {
-        document.querySelector('#error-email-passphrase').textContent = 'Passphrase is required';
+        const errorDiv = document.querySelector('#error-email-passphrase');
+        errorDiv.classList.remove('d-none');
+        errorDiv.textContent = 'Passphrase is required';
         return;
     }
 
@@ -196,7 +198,8 @@ function handleSubmitPassphrase(email_id) {
             
             if (result.error) {
                 console.error('Error decrypting message:', result.error);
-                let errorDiv = document.querySelector('#error-email-passphrase');
+                const errorDiv = document.querySelector('#error-email-passphrase');
+                errorDiv.classList.remove('d-none');
                 if (errorDiv.hasChildNodes()) {
                     errorDiv.innerHTML = '';
                 }
@@ -259,7 +262,8 @@ function handleSubmitPassphrase(email_id) {
         })
         .catch(error => {
             console.error('Error fetching decrypted message:', error);
-            let errorDiv = document.querySelector('#error-email-passphrase');
+            const errorDiv = document.querySelector('#error-email-passphrase');
+            errorDiv.classList.remove('d-none');
             if (errorDiv.hasChildNodes()) {
                 errorDiv.innerHTML = '';
             }
@@ -270,14 +274,14 @@ function handleSubmitPassphrase(email_id) {
 
 function renderInputPassphrase() {
     let div = document.createElement('div');
-    div.classList.add('h-half', 'd-flex', 'flex-column', 'justify-content-center');
+    div.style.cssText = 'margin-top: 2rem;'
     div.innerHTML = `
         <div class='mb-3'>
             <h3>Enter your passphrase to read the message</h3>
         </div>
 
         <form id='form-input-passphrase'>
-            <id class='form-group row w-100 align-items-center'>
+            <div class='form-group row w-100 align-items-center'>
                 <label for='email-secured-passphrase' class='col-sm-2 col-form-label d-flex align-items-center gap-2'>
                     <i class='fas fa-key'></i>
                     <span>Passphrase</span>
@@ -289,15 +293,20 @@ function renderInputPassphrase() {
                 <div class='col-sm-2'>
                     <button type='submit' id='btn-submit-passphrase' class='btn btn-primary'>Submit</button>
                 </div>
-            </id>
-        </form>
-
-        <div class='form-group row w-100'>
-            <div class='col-sm-10 offset-sm-2'>
-                <span id='error-email-passphrase' class='text-danger'></span>
             </div>
-        </div>
+
+            <div class='form-group row w-100 mt-2'>
+                <div class='col-sm-8 offset-sm-2'>
+                    <div id='error-email-passphrase' class='alert alert-danger d-none'></div>
+                </div>
+            </div>
+        </form>
     `;
+
+    div.addEventListener('input', () => {
+        const errorDiv = document.querySelector('#error-email-passphrase');
+        errorDiv.classList.add('d-none');
+    })
 
     return div;
 }

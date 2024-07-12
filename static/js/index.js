@@ -310,6 +310,7 @@ function user_key_detail(data) {
     function key_mapper(key) {
         const keyMap = {
             'key_id': 'Key ID',
+            'fingerprint': 'Fingerprint',
             'private_key': 'Private Key',
             'public_key': 'Public Key',
             'expire_date': 'Expire Date',

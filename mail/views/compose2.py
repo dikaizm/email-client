@@ -70,8 +70,6 @@ def compose2(request):
             body = res_encrypt_body.data
             
         # Compose email content
-        # mail_content = prepare_email(recipient, subject, body)
-        # new_email = send_email(oauth_creds, mail_content)
         email_sent = GmailService(request.user).send_message(
             sender=request.user.email,
             to=recipient.email,
@@ -105,31 +103,6 @@ def compose2(request):
     return JsonResponse({'success': True, 'message': 'Email send successfully'}, status=200)
 
 
-def prepare_email(recipient, subject, body):
-    message = {
-        'raw': base64.urlsafe_b64encode(
-            (
-                f'MIME-Version: 1.0\n'
-                f'Content-Type: text/plain; charset=UTF-8\n'
-                f'To: {recipient.email}\n'
-                f'Subject: {subject}\n\n'
-                f'{body}'
-            ).encode("utf-8")
-        ).decode("utf-8")
-    }
-    
-    return message
-
-
-def send_email(creds, message):
-    service = build('gmail', 'v1', credentials=creds)
-    try:
-        message = service.users().messages().send(userId='me', body=message).execute()
-        return ServiceResponse(success=True, data=message)
-    except Exception as e:
-        return ServiceResponse(success=False, error=str(e), status=500)
-
-
 '''
 Helper functions
 '''
@@ -143,7 +116,7 @@ def convert_recipients_to_users(user_email: str, recipient_emails: list) -> Serv
             recipients.append(user)
         except User.DoesNotExist:
             # Create new user
-            user = User.objects.create(email=email)
+            user = User.objects.create(email=email, username=email, is_active=False)
             recipients.append(user)
             
     return ServiceResponse(success=True, data=recipients)
@@ -205,6 +178,7 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
     
     # Generate random secret key
     secret_key = secrets.token_hex(16)
+    # Generate HMAC auth key
     hmac_body = generate_hmac(body, secret_key)
     
     if encrypt and sign:

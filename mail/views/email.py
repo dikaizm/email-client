@@ -97,63 +97,66 @@ def decrypt_email(request, email_id):
         
         # Extract body
         payload = extract_body_payload(email.body)
-        
-        try:
-            sender = User.objects.get(email=email.sender_email)
-        except User.DoesNotExist:
-            return JsonResponse({'error': 'Sender not found.'}, status=400)
-        
-        try:
-            recipient_key = PGPKey.objects.get(fingerprint=payload.recipient_key_fpr)
-            # sender_key = PGPKey.objects.filter(user=sender, default_key=True).first()
-                
-            # if sender_key is None:
-            #     return JsonResponse({'error': 'Sender email PGP key not found.'}, status=400)
+
+        user_type = 'recipient'
+        if email.sender_email == request.user.email:
+            user_type = 'sender'
+            payload.body = payload.body[1] # Sender body
             
+            sender_key = PGPKey.objects.get(public_key=payload.sender_public_key)
+            if passphrase != sender_key.passphrase:
+                return JsonResponse({'error': 'Passphrase does not match.'}, status=400)
+            
+            pgp_service = PGPEncrypt(
+                s_public_key=payload.sender_public_key,
+                s_private_key=sender_key.private_key,
+                s_passphrase=sender_key.passphrase,
+            )
+        else:
+            payload.body = payload.body[0] # Recipient body
+            
+            recipient_key = PGPKey.objects.get(fingerprint=payload.recipient_key_fpr)
             if passphrase != recipient_key.passphrase:
                 return JsonResponse({'error': 'Passphrase does not match.'}, status=400)
             
             pgp_service = PGPEncrypt(
-                # s_public_key=sender_key.public_key,
                 s_public_key=payload.sender_public_key,
                 r_private_key=recipient_key.private_key,
                 r_public_key=recipient_key.public_key,
                 r_passphrase=recipient_key.passphrase,
             )
-                        
-            if email.encrypted and email.signed:
-                decrypted_body = pgp_service.decrypt_and_verify_message(payload.body)
-            elif email.encrypted:
-                decrypted_body = pgp_service.decrypt_message(payload.body)
-            elif email.signed:
-                decrypted_body = pgp_service.verify_message(payload.body)
-            
-            if decrypted_body.get('error') is not None:
-                return JsonResponse({'error': f'Failed to decrypt message: {decrypted_body.get("error")}'}, status=400)
-            
-            email.body = decrypted_body.get('message')
-            
-            # Split body and HMAC key (body::hmac)
-            split_hmac = payload.hmac_key.split('::')
-            hmac_id = split_hmac[0]
-            hmac_key = split_hmac[1]
-            
-            # Get HMAC key from database
-            try:
-                hmac = EmailHMAC.objects.get(pk=hmac_id)
-            except EmailHMAC.DoesNotExist:
-                return JsonResponse({'error': 'HMAC key not found.'}, status=400)
-            
-            # Verify HMAC authentication
-            if verify_hmac(email.body, hmac.secret_key, received_hmac=hmac_key) is False:
-                print("Failed to verify HMAC authentication")
-                return JsonResponse({'error': 'Failed to verify HMAC authentication'})
-
-            
-            return JsonResponse({'data': email.serialize()})
         
-        except PGPKey.DoesNotExist:
-            return JsonResponse({'error': 'PGP key not found.'}, status=400)
+        if email.encrypted and email.signed:
+            decrypted_body = pgp_service.decrypt_and_verify_message(payload.body, type=user_type)
+        elif email.encrypted:
+            decrypted_body = pgp_service.decrypt_message(payload.body, type=user_type)
+        elif email.signed:
+            decrypted_body = pgp_service.verify_message(payload.body)
+        
+        if decrypted_body.get('error') is not None:
+            return JsonResponse({'error': f'Failed to decrypt message: {decrypted_body.get("error")}'}, status=400)
+        
+        email.body = decrypted_body.get('message')
+        
+        # Split body and HMAC key (body::hmac)
+        split_hmac = payload.hmac_key.split('::')
+        hmac_id = split_hmac[0]
+        hmac_key = split_hmac[1]
+        
+        # Get HMAC key from database
+        try:
+            hmac = EmailHMAC.objects.get(pk=hmac_id)
+        except EmailHMAC.DoesNotExist:
+            return JsonResponse({'error': 'HMAC key not found.'}, status=400)
+        
+        # Verify HMAC authentication
+        if verify_hmac(email.body, hmac.secret_key, received_hmac=hmac_key) is False:
+            print("Failed to verify HMAC authentication")
+            return JsonResponse({'error': 'Failed to verify HMAC authentication'})
+
+        
+        return JsonResponse({'data': email.serialize()})
+        
     
     else:
         return JsonResponse({

@@ -19,15 +19,17 @@ class PGPEncrypt:
     def encrypt_message(self, message):
         try:
             # Load public key
-            public_key, _ = pgpy.PGPKey.from_blob(self.r_public_key)
+            r_pubkey, _ = pgpy.PGPKey.from_blob(self.r_public_key)
+            s_pubkey, _ = pgpy.PGPKey.from_blob(self.s_public_key)
             
             # Create PGPMessage object from message
             pgp_message = pgpy.PGPMessage.new(message)
             
             # Encrypt message
-            encrypted_message = public_key.encrypt(pgp_message)
+            r_enc_msg = r_pubkey.encrypt(pgp_message)
+            s_enc_msg = s_pubkey.encrypt(pgp_message)
             
-            return str(encrypted_message)
+            return (str(r_enc_msg), str(s_enc_msg))
         
         except PGPError as e:
             return {"error": str(e)}
@@ -38,13 +40,17 @@ class PGPEncrypt:
     Jika berhasil, fungsi mengembalikan objek JSON dengan pesan terdekripsi.
     Jika terjadi kesalahan, fungsi mengembalikan objek JSON dengan pesan error.
     """
-    def decrypt_message(self, encrypted_message):
+    def decrypt_message(self, encrypted_message, type='recipient'):
         try:
             # Memuat private key
-            private_key, _ = pgpy.PGPKey.from_blob(self.r_private_key)
+            if type == 'recipient':
+                private_key, _ = pgpy.PGPKey.from_blob(self.r_private_key)
+            elif type == 'sender':
+                private_key, _ = pgpy.PGPKey.from_blob(self.s_private_key)
             
             # Membuka kunci private key dengan passphrase
-            with private_key.unlock(self.r_passphrase):
+            passphrase = self.r_passphrase if type == 'recipient' else self.s_passphrase
+            with private_key.unlock(passphrase):
                 # Memuat pesan terenkripsi
                 enc_msg = pgpy.PGPMessage.from_blob(encrypted_message)
                 decrypt_msg = private_key.decrypt(enc_msg)
@@ -107,11 +113,14 @@ class PGPEncrypt:
     def encrypt_and_sign_message(self, message):
         try:
             # Memuat public key penerima
-            pub_key, _ = pgpy.PGPKey.from_blob(self.r_public_key)
+            r_pubkey, _ = pgpy.PGPKey.from_blob(self.r_public_key)
+            s_pubkey, _ = pgpy.PGPKey.from_blob(self.s_public_key)
             
             # Memeriksa apakah public key memiliki flag enkripsi
-            if not any(uid.selfsig.key_flags & {pgpy.constants.KeyFlags.EncryptCommunications, pgpy.constants.KeyFlags.EncryptStorage} for uid in pub_key.userids):
+            if not any(uid.selfsig.key_flags & {pgpy.constants.KeyFlags.EncryptCommunications, pgpy.constants.KeyFlags.EncryptStorage} for uid in r_pubkey.userids):
                 raise ValueError("public key penerima tidak valid untuk enkripsi.")
+            if not any(uid.selfsig.key_flags & {pgpy.constants.KeyFlags.EncryptCommunications, pgpy.constants.KeyFlags.EncryptStorage} for uid in s_pubkey.userids):
+                raise ValueError("public key pengirim tidak valid untuk enkripsi.")
             
             # Memuat private key pengirim
             priv_key, _ = pgpy.PGPKey.from_blob(self.s_private_key)
@@ -124,9 +133,10 @@ class PGPEncrypt:
                 msg |= priv_key.sign(msg)
                 
             # Mengenkripsi pesan yang ditandatangani dengan public key penerima
-            encrypted_message = pub_key.encrypt(msg)
+            r_enc_msg = r_pubkey.encrypt(msg)
+            s_enc_msg = s_pubkey.encrypt(msg)
             
-            return str(encrypted_message)
+            return (str(r_enc_msg), str(s_enc_msg))
         
         except PGPError as e:
             return {"error": str(e)}
@@ -138,13 +148,17 @@ class PGPEncrypt:
     Jika berhasil, fungsi mengembalikan pesan terenkripsi dalam bentuk json.
     Jika terjadi kesalahan, fungsi mengembalikan objek JSON dengan pesan error.
     """
-    def decrypt_and_verify_message(self, encrypted_message):
+    def decrypt_and_verify_message(self, encrypted_message, type='recipient'):
         try:
             # Memuat private key penerima
-            priv_key, _ = pgpy.PGPKey.from_blob(self.r_private_key)
+            if type == 'recipient':
+                priv_key, _ = pgpy.PGPKey.from_blob(self.r_private_key)
+            elif type == 'sender':
+                priv_key, _ = pgpy.PGPKey.from_blob(self.s_private_key)
             
-            # Membuka private keys key penerima dengan passphrase
-            with priv_key.unlock(self.r_passphrase):
+            # Membuka private keys dengan passphrase
+            passphrase = self.r_passphrase if type == 'recipient' else self.s_passphrase
+            with priv_key.unlock(passphrase):
                 pgp_msg = pgpy.PGPMessage.from_blob(encrypted_message)
                 # Decrypt the message
                 decrypted_message = priv_key.decrypt(pgp_msg)
