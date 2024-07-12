@@ -18,6 +18,7 @@ urlpatterns = [
     path('compose', index.compose_view, name='compose'),
     path('inbox', index.inbox_view, name='inbox'),
     path('sent', index.sent_view, name='sent'),
+    path('security', index.security_view, name='security'),
     
     # API Routes
     path('api/email/refresh/<str:label>', index.refresh_emails_api, name='refresh_emails'),
@@ -27,9 +28,9 @@ urlpatterns = [
     path('api/email/sent', index.sent_api, name='sent_api'),
     
     path('api/email/<int:email_id>', index.email_detail_api, name='email'),
+    path('api/email/decrypt/<int:email_id>', index.decrypt_email_api, name='decrypt_message'),
     
     path('emails/<str:mailbox>', index.mailbox, name='mailbox'),
-    path('emails/decrypt/<int:email_id>', index.decrypt_email_view, name='decrypt_message'),
     
     # PGP Keys
     path('api/security/generate', index.generate_key_view, name='generate_key'),

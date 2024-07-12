@@ -1,15 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
-
-    // Use buttons to toggle between views
-    document.querySelector('#inbox').addEventListener('click', () => load_mailbox('inbox'));
-    document.querySelector('#sent').addEventListener('click', () => load_mailbox('sent'));
-    document.querySelector('#archived').addEventListener('click', () => load_mailbox('archive'));
-    document.querySelector('#security').addEventListener('click', load_security);
-    document.querySelector('#compose').addEventListener('click', compose_email);
-    document.querySelector('#compose-form').addEventListener('submit', send_email);
-
-    // By default, load the inbox
-    load_mailbox('inbox');
+    load_security();
 });
 
 
@@ -48,8 +38,6 @@ function compose_email() {
 function load_security() {
     // Show the security view (PGP key pair and other user saved public key) and hide other views
     document.querySelector('#security-view').style.display = 'block';
-    document.querySelector('#emails-view').style.display = 'none';
-    document.querySelector('#compose-view').style.display = 'none';
 
     const pageView = document.querySelector('#security-view');
 
@@ -367,7 +355,7 @@ function user_key_detail(data) {
     }
 
     function key_detail_rows() {
-        objToArr = Object.entries(data).map(([key, value]) => {
+        let objToArr = Object.entries(data).map(([key, value]) => {
             return { key: key, value: value }
         })
 
@@ -421,7 +409,7 @@ function user_key_detail(data) {
             console.log(data);
             load_security();
         })
-    }) 
+    })
 }
 
 /**
@@ -817,17 +805,17 @@ function send_email() {
                                 flag: result.flag
                             })
                         })
-                        .then(res => res.json())
-                        .then(reqKeyData => {
-                            if (reqKeyData.error) {
-                                alert(reqKeyData.error)
-                                return
-                            }
+                            .then(res => res.json())
+                            .then(reqKeyData => {
+                                if (reqKeyData.error) {
+                                    alert(reqKeyData.error)
+                                    return
+                                }
 
-                            alert(reqKeyData.message)
-                            // Hapus error message
-                            composeError.innerHTML = '';
-                        })
+                                alert(reqKeyData.message)
+                                // Hapus error message
+                                composeError.innerHTML = '';
+                            })
                     })
                 }
 

@@ -207,6 +207,8 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
         # sign body
         print(f"Signing email body to {recipient.email}")
         new_body = pgp_service.sign_message(body)
+        
+    print(new_body)
     
     # If new body is an error, return error
     if isinstance(new_body, ValueError):
@@ -216,9 +218,12 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
     # Convert to base64
     json_body = json.dumps({
         'body': new_body,
-        'public_key': sender_key.public_key
+        'public_key': sender_key.public_key,
+        'key_fpr': recipient_key.fingerprint
     })
     base64_body = base64.b64encode(json_body.encode()).decode()
+    # Add text to indicate that the body is encrypted or signed
+    base64_body = f'{base64_body}\n-----AYU_OPENPGP-----\nFLAG:{json.dumps({"ENCRYPTED": encrypt, "SIGNED": sign})}'
         
     return ServiceResponse(success=True, data=base64_body, status=200)
 

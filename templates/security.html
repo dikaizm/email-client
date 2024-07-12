@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block body %}
+{% include 'nav.html' %}
+
+<div id="security-view" class="container"></div>
+
+{% endblock %}
+{% block script %}
+<script type="module" src='{% static "js/index.js" %}'></script>
+{% endblock %}

@@ -189,6 +189,12 @@ def email_detail_api(request, email_id):
         }, status=400)
 
 
+@csrf_exempt
+@login_required
+def security_view(request):
+    return render(request, 'security.html')
+
+
 # POST request to generate a new PGP key
 # Request body: { key_type, key_size, expiration, passphrase, comment }
 @csrf_exempt
@@ -223,5 +229,5 @@ def received_key_item_view(request, key_id):
 
 @csrf_exempt
 @login_required
-def decrypt_email_view(request, email_id):
+def decrypt_email_api(request, email_id):
     return decrypt_email(request, email_id)

@@ -1,4 +1,5 @@
 import pgpy
+from pgpy.errors import PGPError 
 
 
 class PGPEncrypt:
@@ -28,8 +29,8 @@ class PGPEncrypt:
             
             return str(encrypted_message)
         
-        except ValueError as ve:
-            return {"error": str(ve)}
+        except PGPError as e:
+            return {"error": str(e)}
         
     
     """
@@ -50,8 +51,8 @@ class PGPEncrypt:
                 
             return {"message": str(decrypt_msg.message)}
         
-        except ValueError as ve:
-            return {"error": str(ve)}
+        except PGPError as e:
+            return {"error": str(e)}
         
         
     """
@@ -119,17 +120,16 @@ class PGPEncrypt:
             with priv_key.unlock(self.s_passphrase):
                 # Membuat objek PGPMessage dari pesan plaintext
                 msg = pgpy.PGPMessage.new(message)
-                
                 # Menandatangani pesan menggunakan private key pengirim
                 msg |= priv_key.sign(msg)
                 
-                # Mengenkripsi pesan yang ditandatangani dengan public key penerima
-                encrypted_message = pub_key.encrypt(msg)
+            # Mengenkripsi pesan yang ditandatangani dengan public key penerima
+            encrypted_message = pub_key.encrypt(msg)
             
             return str(encrypted_message)
         
-        except ValueError as ve:
-            return {"error": str(ve)}
+        except PGPError as e:
+            return {"error": str(e)}
 
 
     """
@@ -145,8 +145,9 @@ class PGPEncrypt:
             
             # Membuka private keys key penerima dengan passphrase
             with priv_key.unlock(self.r_passphrase):
+                pgp_msg = pgpy.PGPMessage.from_blob(encrypted_message)
                 # Decrypt the message
-                decrypted_message = priv_key.decrypt(pgpy.PGPMessage.from_blob(encrypted_message))
+                decrypted_message = priv_key.decrypt(pgp_msg)
                 
             # Memuat public key pengirim
             pub_key, _ = pgpy.PGPKey.from_blob(self.s_public_key)
@@ -159,5 +160,5 @@ class PGPEncrypt:
                 print("Signature verification failed.")
                 return {"error": "Signature verification failed."}
             
-        except ValueError as ve:
-            return {"error": str(ve)}
+        except PGPError as e:
+            return {"error": str(e)}
