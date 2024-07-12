@@ -60,34 +60,36 @@ export default function viewEmail(email_id) {
 
             emailView.appendChild(emailCard);
 
-            let archiveBtn = document.createElement('btn');
-            archiveBtn.className = `btn btn-warning my-2`;
+            // let archiveBtn = document.createElement('btn');
+            // archiveBtn.className = `btn btn-warning my-2`;
 
-            archiveBtn.addEventListener('click', () => {
-                archive_and_unarchive(email_id, email.data.archived);
+            // archiveBtn.addEventListener('click', () => {
+            //     archive_and_unarchive(email_id, email.data.archived);
 
-                if (archiveBtn.innerText == 'Archive') {
-                    archiveBtn.innerText = 'Unarchive';
-                } else {
-                    archiveBtn.innerText = 'Archive';
-                }
-            });
+            //     if (archiveBtn.innerText == 'Archive') {
+            //         archiveBtn.innerText = 'Unarchive';
+            //     } else {
+            //         archiveBtn.innerText = 'Archive';
+            //     }
+            // });
 
-            if (!email.archived) {
-                archiveBtn.innerHTML = `<i class='fas fa-folder-open'></i> Archive`;
-            } else {
-                archiveBtn.innerHTML = `<i class='fas fa-folder'></i> Unarchive`;
-            }
+            // if (!email.archived) {
+            //     archiveBtn.innerHTML = `<i class='fas fa-folder-open'></i> Archive`;
+            // } else {
+            //     archiveBtn.innerHTML = `<i class='fas fa-folder'></i> Unarchive`;
+            // }
 
-            emailView.appendChild(archiveBtn);
+            // emailView.appendChild(archiveBtn);
 
-            let replyBtn = document.createElement('btn');
-            replyBtn.className = `btn btn-success my-2`;
-            replyBtn.style.cssText = 'margin-left: 15px';
-            replyBtn.innerHTML = `<i class='fas fa-reply'></i> Reply`;
-            replyBtn.addEventListener('click', () => {
-                reply(email.data.sender, email.data.subject, email.data.body, email.data.date);
-            });
+            // let replyBtn = document.createElement('btn');
+            // replyBtn.className = `btn btn-success my-2`;
+            // replyBtn.style.cssText = 'margin-left: 15px';
+            // replyBtn.innerHTML = `<i class='fas fa-reply'></i> Reply`;
+            // replyBtn.addEventListener('click', () => {
+            //     reply(email.data.sender, email.data.subject, email.data.body, email.data.date);
+            // });
+
+            // emailView.appendChild(replyBtn);
 
             // Handle for read secured email
             let readSecuredMsgBtn = document.querySelector('#btn-read-secured-email');
@@ -95,7 +97,7 @@ export default function viewEmail(email_id) {
                 readSecuredMsgBtn.addEventListener('click', () => handleReadSecuredMsg(email_id));
             }
 
-            emailView.appendChild(replyBtn);
+
             read(email_id);
         })
 }
