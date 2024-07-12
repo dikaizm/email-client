@@ -36,7 +36,7 @@ export default function viewEmail(email_id) {
                         ${encryptCondition ? (
                     `
                                     <p>
-                                        ${email.data.sender_name} has sent you a protected message. Please click the button below to view the message.
+                                        ${email.data.sender_email} has sent you a protected message. Please click the button below to view the message.
                                     </p>
                                     <i class='fas fa-lock'></i>
                                     <div>
