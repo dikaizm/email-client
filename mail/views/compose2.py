@@ -14,7 +14,6 @@ from mail.models import Email, EmailHMAC, PGPKey, User
 from mail.services.gmail.index import GmailService
 from mail.utils.hmac_auth import generate_hmac
 from mail.utils.response import ServiceResponse
-from mail.services.auth_google import oauth_get_credentials
 from googleapiclient.discovery import build
 from mail.services.pgp_encrypt import PGPEncrypt
 
@@ -41,8 +40,7 @@ def compose2(request):
             'error': recipients.error
         }, status=recipients.status)
     
-    oauth_creds = oauth_get_credentials(request.user)
-    
+        
     subject = data.get('subject', '')
     body = data.get('body', '')
     is_encrypt = data.get('encrypt', False)
@@ -144,7 +142,10 @@ def convert_recipients_to_users(user_email: str, recipient_emails: list) -> Serv
             user = User.objects.get(email=email)    
             recipients.append(user)
         except User.DoesNotExist:
-            return ServiceResponse(success=False, error=f'User with email {email} not found.', status=404)
+            # Create new user
+            user = User.objects.create(email=email)
+            recipients.append(user)
+            
     return ServiceResponse(success=True, data=recipients)
 
 
@@ -160,7 +161,7 @@ def is_recipient_has_pubkey(email: str) -> ServiceResponse:
         # Check if recipient has a public key in the database
         key = PGPKey.objects.filter(user=recipient).first()
         
-        if key.is_expired():
+        if key is not None and key.is_expired():
             return ServiceResponse(success=False, error=f'PGP key for user {email} has expired!', status=400)
         
         # If recipient has a public key, return key
@@ -188,15 +189,18 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
     # Get recipient's key pair
     recipient_key = PGPKey.objects.filter(user=recipient, default_key=True).first()
     if not recipient_key:
-        return ServiceResponse(success=False, error='Recipient does not have a PGP key.', status=400)
+        recipient_key = is_recipient_has_pubkey(recipient.email)
+        if not recipient_key.success:
+            return ServiceResponse(success=False, error=recipient_key.error, status=recipient_key.status)
+        
+        recipient_key.public_key = recipient_key.data
+        
     
     pgp_service = PGPEncrypt(
         s_private_key=sender_key.private_key,
         s_public_key=sender_key.public_key,
         s_passphrase=sender_key.passphrase,
-        r_private_key=recipient_key.private_key,
         r_public_key=recipient_key.public_key,
-        r_passphrase=recipient_key.passphrase,
     )
     
     # Generate random secret key
@@ -230,7 +234,10 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
         )
     except Exception as e:
         return ServiceResponse(success=False, error=f'Failed to save HMAC: {e}', status=500)
-        
+    
+    if not hasattr(recipient_key, 'fingerprint'):
+        recipient_key.fingerprint = ''
+    
     # Convert to base64
     json_body = json.dumps({
         'body': new_body,
@@ -249,7 +256,7 @@ def unlock_key(user, passphrase):
     try:
         key = PGPKey.objects.get(user=user, default_key=True)
     except PGPKey.DoesNotExist:
-        return ServiceResponse(success=False, error='Key not found.', status=404)
+        return ServiceResponse(success=False, error='Private key not found.', status=404)
 
     priv_key, _ = pgpy.PGPKey.from_blob(key.private_key)
     
