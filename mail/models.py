@@ -117,10 +117,14 @@ class UserOAuthToken(models.Model):
 
 
 class Email(models.Model):
+    key_id = models.CharField(max_length=255, db_index=True, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='emails')
-    sender = models.ForeignKey(User, on_delete=models.PROTECT, related_name='emails_sent')
-    recipients = models.ManyToManyField(User, related_name='emails_received')
-    subject = models.CharField(max_length=255)
+    sender_name = models.CharField(max_length=255, blank=True)
+    sender_email = models.CharField(max_length=255)
+    recipient_name = models.CharField(max_length=255, blank=True)
+    recipient_email = models.CharField(max_length=255)
+    label = models.CharField(max_length=255, blank=True)
+    subject = models.CharField(max_length=255, blank=True)
     body = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     read = models.BooleanField(default=False)
@@ -134,8 +138,12 @@ class Email(models.Model):
         
         return {
             'id': self.id,
-            'sender': self.sender.email,
-            'recipients': [user.email for user in self.recipients.all()],
+            'key_id': self.key_id,
+            'sender_name': self.sender_name,
+            'sender_email': self.sender_email,
+            'recipient_name': self.recipient_name,
+            'recipient_email': self.recipient_email,
+            'label': self.label,
             'subject': self.subject,
             'body': self.body,
             'timestamp': timestamp_date.strftime('%b %d %Y, %I:%M %p'),
@@ -144,6 +152,28 @@ class Email(models.Model):
             'encrypted': self.encrypted,
             'signed': self.signed,
         }
+        
+    def create_email(key_id, user, recipient_email, sender_email, sender_name='', recipient_name='', subject='', body='', encrypted=False, signed=False, label=''):
+        # If sender email formatted as "Name <email>", extract name and email
+        if sender_email.find('<') != -1:
+            sender_name = sender_email.split('<')[0].strip()
+            sender_email = sender_email.split('<')[1].split('>')[0].strip()
+        
+        email = Email.objects.create(
+            key_id=key_id,
+            user=user,
+            sender_name=sender_name,
+            sender_email=sender_email,
+            recipient_name=recipient_name,
+            recipient_email=recipient_email,
+            subject=subject,
+            body=body,
+            encrypted=encrypted,
+            signed=signed,
+            label=label
+        )
+        
+        return email
 
 
 class EmailHMAC(models.Model):

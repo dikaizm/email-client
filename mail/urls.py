@@ -14,11 +14,17 @@ urlpatterns = [
     path('logout', index.logout_view, name='logout'),
     # path('register', index.register_view, name='register'),
 
-    # API Routes
-    # Emails
+    # View Routes
     path('compose', index.compose_view, name='compose'),
+    path('inbox', index.inbox_view, name='inbox'),
+    path('sent', index.sent_view, name='sent'),
+    
+    # API Routes
+    path('api/email/refresh/<str:label>', index.refresh_emails_api, name='refresh_emails'),
     path('api/email/find-pubkey/<str:email>', index.find_recipient_pubkey_api, name='find_recipient_pubkey'),
     path('api/email/send', index.compose2_api, name='send_email'),
+    path('api/email/inbox', index.inbox_api, name='inbox_api'),
+    path('api/email/sent', index.sent_api, name='sent_api'),
     
     path('emails/<int:email_id>', index.email, name='email'),
     path('emails/<str:mailbox>', index.mailbox, name='mailbox'),

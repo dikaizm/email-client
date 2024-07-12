@@ -12,7 +12,7 @@ from ..models import Email
 from .security import generate_key, user_keys, user_key_item, received_keys, received_key_item
 from .compose import compose, request_key
 from .auth import login_service, email_validation_srv
-from .email import get_email, decrypt_email
+from .email import get_emails, decrypt_email, refresh_emails
 
 
 logger = logging.getLogger('app_api') #from LOGGING.loggers in settings.py
@@ -60,6 +60,56 @@ def compose2_api(request):
         return JsonResponse({
             'error': 'POST request required.'
         }, status=400)
+
+
+@csrf_exempt
+@login_required
+def refresh_emails_api(request, label):
+    if request.method != 'GET':
+        return JsonResponse({
+            'error': 'GET request required.'
+        }, status=400)
+    
+    if label not in ['INBOX', 'SENT']:
+        return JsonResponse({
+            'error': 'Invalid label.'
+        }, status=400)
+        
+    return refresh_emails(request, label)
+
+
+@csrf_exempt
+@login_required
+def inbox_view(request):
+    return render(request, 'inbox.html')
+
+
+@csrf_exempt
+@login_required
+def inbox_api(request):
+    if request.method != 'GET':
+        return JsonResponse({
+            'error': 'GET request required.'
+        }, status=400)
+    
+    return get_emails(request, label='INBOX')
+    
+
+@csrf_exempt
+@login_required
+def sent_view(request):
+    return render(request, 'sent.html')
+
+
+@csrf_exempt
+@login_required
+def sent_api(request):
+    if request.method != 'GET':
+        return JsonResponse({
+            'error': 'GET request required.'
+        }, status=400)
+    
+    return get_emails(request, label='SENT')
 
 
 @csrf_exempt

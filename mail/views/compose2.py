@@ -7,7 +7,8 @@ import pgpy
 from pgpy.errors import PGPDecryptionError
 import requests
 
-from mail.models import PGPKey, User
+from mail.models import Email, PGPKey, User
+from mail.services.gmail.index import GmailService
 from mail.utils.response import ServiceResponse
 from mail.services.auth_google import oauth_get_credentials
 from googleapiclient.discovery import build
@@ -43,9 +44,7 @@ def compose2(request):
     is_encrypt = data.get('encrypt', False)
     is_sign = data.get('sign', False)
     passphrase = data.get('passphrase', '')
-    
-    print(passphrase)
-    
+        
     if is_sign:
         # Check passphrase validity
         unlock_res = unlock_key(request.user, passphrase)
@@ -69,22 +68,50 @@ def compose2(request):
             body = res_encrypt_body.data
             
         # Compose email content
-        mail_content = mail_send(recipient, subject, body)
-        send_email(oauth_creds, mail_content)
+        # mail_content = prepare_email(recipient, subject, body)
+        # new_email = send_email(oauth_creds, mail_content)
+        email_sent = GmailService(request.user).send_message(
+            sender=request.user.email,
+            to=recipient.email,
+            subject=subject,
+            msg_plain=body
+        )
+        
         print(f"Email sent to {recipient.email}")
+        print(email_sent.serialize())
+
+        try:
+            Email.create_email(
+                key_id=email_sent.id,
+                user=request.user,
+                sender_email=email_sent.sender,
+                recipient_email=email_sent.recipient,
+                subject=email_sent.subject,
+                body=email_sent.plain,
+                encrypted=is_encrypt,
+                signed=is_sign,
+                label='SENT'
+            )
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Failed to save email: {e}'
+            }, status=500)
         
         
     return JsonResponse({'success': True, 'message': 'Email send successfully'}, status=200)
 
 
-def mail_send(recipient, subject, body):
+def prepare_email(recipient, subject, body):
     message = {
         'raw': base64.urlsafe_b64encode(
-            f'MIME-Version: 1.0\n'
-            f'Content-type: text/plain\n; charset=UTF-8\n'
-            f'To: {recipient.email}\n'
-            f'Subject: {subject}\n\n'
-            f'{body}'.encode("utf-8")
+            (
+                f'MIME-Version: 1.0\n'
+                f'Content-Type: text/plain; charset=UTF-8\n'
+                f'To: {recipient.email}\n'
+                f'Subject: {subject}\n\n'
+                f'{body}'
+            ).encode("utf-8")
         ).decode("utf-8")
     }
     
@@ -184,6 +211,7 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
     if isinstance(new_body, ValueError):
         return ServiceResponse(success=False, error=str(new_body), status=400)
     
+        
     # Convert to base64
     json_body = json.dumps({
         'body': new_body,

@@ -1,11 +1,9 @@
-{% extends 'base.html' %}
-{% load static %}
-{% block body %}
+{% extends 'base.html' %} {% load static %} {% block body %}
 {% include 'nav.html' %}
 
-<div id="inbox-view" class="container">
+<div id="sent-view" class="container">
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Inbox</h3>
+    <h3>Sent</h3>
     
     <button
       id="btn-refresh-inbox"
@@ -19,11 +17,10 @@
       <span> Refresh</span>
     </button>
   </div>
-
+  
   <div id="emails-list"></div>
 </div>
 
-{% endblock %}
-{% block script %}
-<script src='{% static "js/inbox.js" %}'></script>
+{% endblock %} {% block script %}
+<script src='{% static "js/sent.js" %}'></script>
 {% endblock %}

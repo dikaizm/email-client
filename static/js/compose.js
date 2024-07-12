@@ -100,17 +100,15 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(data);
 
             if (!data.success) {
-                const composeError = document.getElementById('compose-error');
-                composeError.innerHTML = '';
-
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-danger';
-                alert.innerHTML = data.error;
-                composeError.appendChild(alert);
+                return showError(data.error);
             }
+
+            // Load the sent emails
+            window.location.href = '/sent';
 
         } catch (error) {
             console.error('Error sending email:', error);
+            return showError('Error sending email. Please try again later.');
         }
     }
 
@@ -118,14 +116,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (signCheckbox) {
         signCheckbox.addEventListener('change', function () {
             const passphraseWrapper = document.getElementById('passphrase-input');
-            
+
             const passphraseInput = document.createElement('input');
             passphraseInput.type = 'password';
             passphraseInput.id = 'compose-passphrase';
             passphraseInput.className = 'form-control';
             passphraseInput.placeholder = 'Your key passphrase';
 
-            passphraseInput.addEventListener('input', function() {
+            passphraseInput.addEventListener('input', function () {
                 const composeError = document.getElementById('compose-error');
                 composeError.innerHTML = '';
             })
@@ -143,3 +141,14 @@ document.addEventListener('DOMContentLoaded', function () {
         composeForm.addEventListener('submit', (event) => sendEmail(event));
     }
 })
+
+
+function showError(message) {
+    const composeError = document.getElementById('compose-error');
+    composeError.innerHTML = '';
+
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger';
+    alert.innerHTML = message;
+    return composeError.appendChild(alert);
+}

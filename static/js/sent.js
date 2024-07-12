@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const btnRefreshInbox = document.getElementById('btn-refresh-inbox');
     btnRefreshInbox.addEventListener('click', async function () {
-        console.log('Refreshing inbox');
+        console.log('Refreshing sent');
 
         // Disable button
         btnRefreshInbox.setAttribute('disabled', 'disabled');
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 async function fetchEmails() {
     try {
-        const response = await fetch('/api/email/inbox', {
+        const response = await fetch('/api/email/sent', {
             method: 'GET'
         })
         const emails = await response.json();
@@ -63,7 +63,7 @@ async function fetchEmails() {
 
 async function refreshEmails() {
     try {
-        const response = await fetch('/api/email/refresh/INBOX', {
+        const response = await fetch('/api/email/refresh/SENT', {
             method: 'GET'
         })
         const emails = await response.json();
@@ -112,7 +112,7 @@ function displayEmails(data) {
                     </div>
                 `;
 
-        document.getElementById('inbox-view').appendChild(div);
+        document.getElementById('sent-view').appendChild(div);
 
         // div.addEventListener('click', () => {
         //     view_email(email.id, mailbox);

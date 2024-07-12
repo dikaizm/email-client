@@ -4,11 +4,62 @@ from mail.models import Email, PGPKey, EmailPGPKey
 from django.conf import settings
 from ..utils.pgp_encryption import decrypt_message, decrypt_and_verify_message, verify_message
 from ..utils.hmac_auth import verify_hmac
+from mail.services.gmail.index import GmailService
+from mail.services.gmail.query import construct_query
 
 
-def get_email(request, id, email):
+def refresh_emails(request, label):
+    gmail = GmailService(request.user)
+    labels = gmail.list_labels()
     
-    return JsonResponse(email.serialize())
+    # print(labels)
+    
+    query_params = {
+        "newer_than": (2, "day"),
+        "unread": True,
+        "labels": [[label]]
+    }
+    
+    try:
+        # emails = gmail.get_unread_inbox(labels=[label])
+        emails = gmail.get_messages(query=construct_query(query_params))
+    except Exception as e:
+        return JsonResponse({'error': f'Failed to retrieve emails: {e}'}, status=400)
+    
+    # Save emails to database
+    for email in emails:
+        if email.sender == request.user.email and label == 'INBOX':
+            continue
+        
+        try:
+            Email.objects.get(user=request.user, key_id=email.id)
+        except Email.DoesNotExist:
+            try:
+                Email.create_email(
+                    user=request.user,
+                    key_id=email.id,
+                    sender_email=email.sender,
+                    recipient_email=email.recipient,
+                    subject=email.subject,
+                    body=email.plain,
+                    label=label,
+                    encrypted=False,
+                    signed=False
+                )
+            except Exception as e:
+                return JsonResponse({'error': f'Failed to save email: {e}'}, status=400)
+        
+    return JsonResponse({'success': True, 'message': 'Emails saved.'})
+
+
+def get_emails(request, label):
+    try:
+        emails = Email.objects.filter(user=request.user, label=label)
+    except:
+        return JsonResponse({'error': 'Email not found.'}, status=404)
+    
+    emails = [email.serialize() for email in emails]
+    return JsonResponse({'success': True, 'message': 'Email retrieved', 'data': {'emails': emails, 'user': request.user.email}})
 
 
 def decrypt_email(request, email_id):

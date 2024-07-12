@@ -1,0 +1,12 @@
+{% extends 'base.html' %} {% load static %} {% block body %}
+
+<!-- Nav header -->
+{% include 'nav.html' %}
+
+<div id="emails-view" class="container"></div>
+<div id="security-view" class="container"></div>
+
+{% endblock %} {% block script %}
+<!-- Custom scripts -->
+<script src='{% static "js/index.js" %}'></script>
+{% endblock %}
