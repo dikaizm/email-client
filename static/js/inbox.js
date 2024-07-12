@@ -90,7 +90,7 @@ function displayEmails(data) {
             is_read = 'unread';
         }
 
-        const encryptCondition = email.encrypted && (email.recipients != data.user);
+        const encryptCondition = email.encrypted;
 
         const emailBody = email.body.length >= 99 ? `${email.body.slice(0, 99)} <a href='#'>(more...)</a>` : email.body.slice(0, 99);
 
@@ -108,9 +108,7 @@ function displayEmails(data) {
                                 <strong>Date:</strong> ${email.date}
                             </p>
                             <p class='card-text'>
-                                ${encryptCondition ? (emailBody) : (email.encrypted ? `
-                                <i class='fas fa-lock'></i> Encrypted message
-                            ` : (emailBody))}
+                                ${encryptCondition ? `<i class='fas fa-lock'></i> Encrypted message` : emailBody}
                             </p>
                             <a href='#' class='btn btn-primary'>
                                 <i class='fas fa-book-reader'></i> Read
