@@ -10,7 +10,6 @@ from django.views.decorators.csrf import csrf_exempt
 from mail.views.compose2 import compose2, is_recipient_has_pubkey
 from ..models import Email
 from .security import generate_key, user_keys, user_key_item, received_keys, received_key_item
-from .compose import request_key
 from .auth import login_service, email_validation_srv
 from .email import get_emails, decrypt_email, refresh_emails
 
@@ -125,12 +124,6 @@ def find_recipient_pubkey_api(request, email):
         return JsonResponse({'success': res.success, 'error': f"{email} {res.error}"}, status=res.status)
     
     return JsonResponse({'success': res.success, 'message': f"{email} has valid public key"}, status=res.status)
-
-
-@csrf_exempt
-@login_required
-def request_key_view(request):
-    return request_key(request)
 
 
 @login_required
