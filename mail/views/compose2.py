@@ -1,8 +1,6 @@
 import base64
 import json
-import os
 import secrets
-from django.conf import settings
 from django.http import JsonResponse
 from urllib import parse
 
@@ -14,7 +12,6 @@ from mail.models import Email, EmailHMAC, PGPKey, User
 from mail.services.gmail.index import GmailService
 from mail.utils.hmac_auth import generate_hmac
 from mail.utils.response import ServiceResponse
-from googleapiclient.discovery import build
 from mail.services.pgp_encrypt import PGPEncrypt
 
 

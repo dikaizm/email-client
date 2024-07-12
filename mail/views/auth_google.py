@@ -1,9 +1,6 @@
 from django import forms
-from django.contrib.auth import login, authenticate
-from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
-from ..services import auth
 
 from mail.models import User, UserOAuthToken
 from mail.services.auth_google import (

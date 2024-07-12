@@ -1,14 +1,10 @@
 import base64
 import binascii
-from datetime import datetime
 import json
 from django.http import JsonResponse
-from mail.models import Email, EmailHMAC, PGPKey, EmailPGPKey, User
-from django.conf import settings
+from mail.models import Email, EmailHMAC, PGPKey
 
 from mail.services.pgp_encrypt import PGPEncrypt
-from mail.views.compose2 import unlock_key
-from ..utils.pgp_encryption import decrypt_message, decrypt_and_verify_message, verify_message
 from ..utils.hmac_auth import verify_hmac
 from mail.services.gmail.index import GmailService
 from mail.services.gmail.query import construct_query
@@ -16,8 +12,8 @@ from mail.services.gmail.query import construct_query
 
 def refresh_emails(request, label):
     gmail = GmailService(request.user)
-    labels = gmail.list_labels()
     
+    # labels = gmail.list_labels()
     # print(labels)
     
     query_params = {

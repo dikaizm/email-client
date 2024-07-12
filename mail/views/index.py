@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from mail.views.compose2 import compose2, is_recipient_has_pubkey
 from ..models import Email
 from .security import generate_key, user_keys, user_key_item, received_keys, received_key_item
-from .compose import compose, request_key
+from .compose import request_key
 from .auth import login_service, email_validation_srv
 from .email import get_emails, decrypt_email, refresh_emails
 
