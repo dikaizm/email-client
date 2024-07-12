@@ -90,7 +90,8 @@ def compose2(request):
                 body=email_sent.plain,
                 encrypted=is_encrypt,
                 signed=is_sign,
-                label='SENT'
+                label='SENT',
+                date=email_sent.date
             )
         except Exception as e:
             return JsonResponse({

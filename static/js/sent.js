@@ -1,3 +1,5 @@
+import viewEmail from './email.js';
+
 document.addEventListener('DOMContentLoaded', async function () {
     const emailsList = document.getElementById('emails-list');
 
@@ -36,6 +38,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         const refreshedEmails = await refreshEmails();
         if (!refreshedEmails.success) {
+            btnRefreshInbox.removeAttribute('disabled');
+            btnRefreshInbox.innerHTML = `<i class="bi bi-arrow-clockwise"></i>`;
+
             // Display error message
             const div = document.createElement('div');
             div.className = 'alert alert-danger';
@@ -76,6 +81,8 @@ async function refreshEmails() {
 }
 
 function displayEmails(data) {
+    let is_read = '';
+
     data.emails.forEach(email => {
         if (email.read) {
             is_read = 'read';
@@ -98,7 +105,7 @@ function displayEmails(data) {
                             <p class='card-title'>
                                 <strong>From:</strong> <strong><span class='text-info'>${email.sender_email}</span></strong> &nbsp; |  &nbsp;
                                 <strong>To:</strong> <strong><span class='text-info'>${email.recipient_email}</span></strong> &nbsp; |  &nbsp;
-                                <strong>Date:</strong> ${email.timestamp}
+                                <strong>Date:</strong> ${email.date}
                             </p>
                             <p class='card-text'>
                                 ${encryptCondition ? (emailBody) : (email.encrypted ? `
@@ -114,8 +121,9 @@ function displayEmails(data) {
 
         document.getElementById('sent-view').appendChild(div);
 
-        // div.addEventListener('click', () => {
-        //     view_email(email.id, mailbox);
-        // });
+        div.addEventListener('click', () => {
+            document.getElementById('sent-view').innerHTML = '';
+            viewEmail(email.id);
+        });
     })
 }

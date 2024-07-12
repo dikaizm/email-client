@@ -159,17 +159,17 @@ def mailbox(request, mailbox):
 
 @csrf_exempt
 @login_required
-def email(request, email_id):
+def email_detail_api(request, email_id):
 
     # Query for requested email
     try:
         email = Email.objects.get(user=request.user, pk=email_id)
     except Email.DoesNotExist:
-        return JsonResponse({'error': 'Email not found.'}, status=404)
+        return JsonResponse({'success': False, 'error': 'Email not found.'}, status=404)
 
     # Return email contents
     if request.method == 'GET':
-        return get_email(request, email_id, email)
+        return JsonResponse({'success': True, 'data': email.serialize()})
 
     # Update whether email is read or should be archived
     elif request.method == 'PUT':
@@ -184,6 +184,7 @@ def email(request, email_id):
     # Email must be via GET or PUT
     else:
         return JsonResponse({
+            'success': False,
             'error': 'GET or PUT request required.'
         }, status=400)
 

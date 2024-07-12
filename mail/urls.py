@@ -26,7 +26,8 @@ urlpatterns = [
     path('api/email/inbox', index.inbox_api, name='inbox_api'),
     path('api/email/sent', index.sent_api, name='sent_api'),
     
-    path('emails/<int:email_id>', index.email, name='email'),
+    path('api/email/<int:email_id>', index.email_detail_api, name='email'),
+    
     path('emails/<str:mailbox>', index.mailbox, name='mailbox'),
     path('emails/decrypt/<int:email_id>', index.decrypt_email_view, name='decrypt_message'),
     

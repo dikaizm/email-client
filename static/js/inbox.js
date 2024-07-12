@@ -1,3 +1,5 @@
+import viewEmail from './email.js';
+
 document.addEventListener('DOMContentLoaded', async function () {
     const emailsList = document.getElementById('emails-list');
 
@@ -36,6 +38,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         const refreshedEmails = await refreshEmails();
         if (!refreshedEmails.success) {
+            btnRefreshInbox.removeAttribute('disabled');
+            btnRefreshInbox.innerHTML = `<i class="bi bi-arrow-clockwise"></i>`;
+
             // Display error message
             const div = document.createElement('div');
             div.className = 'alert alert-danger';
@@ -76,6 +81,8 @@ async function refreshEmails() {
 }
 
 function displayEmails(data) {
+    let is_read = '';
+
     data.emails.forEach(email => {
         if (email.read) {
             is_read = 'read';
@@ -87,9 +94,9 @@ function displayEmails(data) {
 
         const emailBody = email.body.length >= 99 ? `${email.body.slice(0, 99)} <a href='#'>(more...)</a>` : email.body.slice(0, 99);
 
-        let div = document.createElement('div');
-        div.className = `card my-1 items`;
-        div.innerHTML = `
+        let emailCard = document.createElement('div');
+        emailCard.className = `card my-1 items`;
+        emailCard.innerHTML = `
                     <div class='card ${is_read}'>
                         <div class='card-header ${is_read}'>
                             <strong>${email.subject}</strong>
@@ -98,7 +105,7 @@ function displayEmails(data) {
                             <p class='card-title'>
                                 <strong>From:</strong> <strong><span class='text-info'>${email.sender_email}</span></strong> &nbsp; |  &nbsp;
                                 <strong>To:</strong> <strong><span class='text-info'>${email.recipient_email}</span></strong> &nbsp; |  &nbsp;
-                                <strong>Date:</strong> ${email.timestamp}
+                                <strong>Date:</strong> ${email.date}
                             </p>
                             <p class='card-text'>
                                 ${encryptCondition ? (emailBody) : (email.encrypted ? `
@@ -112,10 +119,11 @@ function displayEmails(data) {
                     </div>
                 `;
 
-        document.getElementById('inbox-view').appendChild(div);
+        document.getElementById('inbox-view').appendChild(emailCard);
 
-        // div.addEventListener('click', () => {
-        //     view_email(email.id, mailbox);
-        // });
+        emailCard.addEventListener('click', () => {
+            document.getElementById('inbox-view').innerHTML = '';
+            viewEmail(email.id);
+        });
     })
 }

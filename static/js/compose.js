@@ -71,6 +71,14 @@ document.addEventListener('DOMContentLoaded', function () {
     async function sendEmail(event) {
         event.preventDefault();
 
+        const btnSend = document.getElementById('compose-send');
+        btnSend.setAttribute('disabled', 'disabled');
+        btnSend.innerHTML = `
+            <div class="spinner-border text-info" role="status" style="height: 20px; width: 20px;">
+                <span class="sr-only">Loading...</span>
+            </div>
+        `;
+
         const recipients = document.getElementById('compose-recipients').value;
         const subject = document.getElementById('compose-subject').value;
         const body = document.getElementById('compose-body').value;
@@ -100,6 +108,8 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(data);
 
             if (!data.success) {
+                btnSend.removeAttribute('disabled');
+                btnSend.innerHTML = 'Send';
                 return showError(data.error);
             }
 
@@ -108,6 +118,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } catch (error) {
             console.error('Error sending email:', error);
+
+            btnSend.removeAttribute('disabled');
+            btnSend.innerHTML = 'Send';
             return showError('Error sending email. Please try again later.');
         }
     }

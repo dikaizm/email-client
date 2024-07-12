@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from django.http import JsonResponse
 from mail.models import Email, PGPKey, EmailPGPKey
@@ -28,6 +29,8 @@ def refresh_emails(request, label):
     
     # Save emails to database
     for email in emails:
+        print(email.serialize())
+        
         if email.sender == request.user.email and label == 'INBOX':
             continue
         
@@ -35,6 +38,9 @@ def refresh_emails(request, label):
             Email.objects.get(user=request.user, key_id=email.id)
         except Email.DoesNotExist:
             try:
+                if email.plain is None:
+                    email.plain = ''
+                
                 Email.create_email(
                     user=request.user,
                     key_id=email.id,
@@ -44,7 +50,8 @@ def refresh_emails(request, label):
                     body=email.plain,
                     label=label,
                     encrypted=False,
-                    signed=False
+                    signed=False,
+                    date=email.date
                 )
             except Exception as e:
                 return JsonResponse({'error': f'Failed to save email: {e}'}, status=400)
@@ -54,7 +61,7 @@ def refresh_emails(request, label):
 
 def get_emails(request, label):
     try:
-        emails = Email.objects.filter(user=request.user, label=label)
+        emails = Email.objects.filter(user=request.user, label=label).order_by('-date').all()
     except:
         return JsonResponse({'error': 'Email not found.'}, status=404)
     

@@ -127,6 +127,7 @@ class Email(models.Model):
     subject = models.CharField(max_length=255, blank=True)
     body = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    date = models.DateTimeField(default=timezone.now)
     read = models.BooleanField(default=False)
     archived = models.BooleanField(default=False)
     encrypted = models.BooleanField(default=False)
@@ -134,7 +135,7 @@ class Email(models.Model):
 
     def serialize(self):
         tz = pytz.timezone('Asia/Bangkok')
-        timestamp_date = self.timestamp.astimezone(tz)
+        timestamp_date = self.date.astimezone(tz)
         
         return {
             'id': self.id,
@@ -151,9 +152,10 @@ class Email(models.Model):
             'archived': self.archived,
             'encrypted': self.encrypted,
             'signed': self.signed,
+            'date': timestamp_date.strftime('%b %d %Y, %I:%M %p')
         }
         
-    def create_email(key_id, user, recipient_email, sender_email, sender_name='', recipient_name='', subject='', body='', encrypted=False, signed=False, label=''):
+    def create_email(key_id, user, recipient_email, sender_email, sender_name='', recipient_name='', subject='', body='', encrypted=False, signed=False, label='', date=timezone.now()):
         # If sender email formatted as "Name <email>", extract name and email
         if sender_email.find('<') != -1:
             sender_name = sender_email.split('<')[0].strip()
@@ -170,7 +172,8 @@ class Email(models.Model):
             body=body,
             encrypted=encrypted,
             signed=signed,
-            label=label
+            label=label,
+            date=date
         )
         
         return email
