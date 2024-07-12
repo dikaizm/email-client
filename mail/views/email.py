@@ -3,7 +3,7 @@ import binascii
 from datetime import datetime
 import json
 from django.http import JsonResponse
-from mail.models import Email, PGPKey, EmailPGPKey, User
+from mail.models import Email, EmailHMAC, PGPKey, EmailPGPKey, User
 from django.conf import settings
 
 from mail.services.pgp_encrypt import PGPEncrypt
@@ -97,7 +97,6 @@ def decrypt_email(request, email_id):
         
         # Extract body
         payload = extract_body_payload(email.body)
-        print(payload)
         
         try:
             sender = User.objects.get(email=email.sender_email)
@@ -105,26 +104,23 @@ def decrypt_email(request, email_id):
             return JsonResponse({'error': 'Sender not found.'}, status=400)
         
         try:
-            recipient_key = PGPKey.objects.get(fingerprint=payload.key_fpr)
-            sender_key = PGPKey.objects.filter(user=sender, default_key=True).first()
+            recipient_key = PGPKey.objects.get(fingerprint=payload.recipient_key_fpr)
+            # sender_key = PGPKey.objects.filter(user=sender, default_key=True).first()
                 
-            if sender_key is None:
-                return JsonResponse({'error': 'Sender email PGP key not found.'}, status=400)
+            # if sender_key is None:
+            #     return JsonResponse({'error': 'Sender email PGP key not found.'}, status=400)
             
             if passphrase != recipient_key.passphrase:
                 return JsonResponse({'error': 'Passphrase does not match.'}, status=400)
             
             pgp_service = PGPEncrypt(
-                s_private_key=sender_key.private_key,
-                s_public_key=sender_key.public_key,
-                s_passphrase=sender_key.passphrase,
+                # s_public_key=sender_key.public_key,
+                s_public_key=payload.sender_public_key,
                 r_private_key=recipient_key.private_key,
                 r_public_key=recipient_key.public_key,
                 r_passphrase=recipient_key.passphrase,
             )
-            
-            print(payload.body)
-            
+                        
             if email.encrypted and email.signed:
                 decrypted_body = pgp_service.decrypt_and_verify_message(payload.body)
             elif email.encrypted:
@@ -135,19 +131,24 @@ def decrypt_email(request, email_id):
             if decrypted_body.get('error') is not None:
                 return JsonResponse({'error': f'Failed to decrypt message: {decrypted_body.get("error")}'}, status=400)
             
-            # # Split body and HMAC key (body::hmac)
-            # split_body = decrypted_body.get('message').split('::')
-            # body = split_body[0]
-            # hmac = split_body[1]
-            
-            # # Verify HMAC authentication
-            # secret_key = settings.SECRET_KEY
-            # if verify_hmac(body, secret_key, received_hmac=hmac) is False:
-            #     return JsonResponse({'error': 'Failed to verify HMAC authentication'})
-            
-            # email.body = body
             email.body = decrypted_body.get('message')
-            print(email.body)
+            
+            # Split body and HMAC key (body::hmac)
+            split_hmac = payload.hmac_key.split('::')
+            hmac_id = split_hmac[0]
+            hmac_key = split_hmac[1]
+            
+            # Get HMAC key from database
+            try:
+                hmac = EmailHMAC.objects.get(pk=hmac_id)
+            except EmailHMAC.DoesNotExist:
+                return JsonResponse({'error': 'HMAC key not found.'}, status=400)
+            
+            # Verify HMAC authentication
+            if verify_hmac(email.body, hmac.secret_key, received_hmac=hmac_key) is False:
+                print("Failed to verify HMAC authentication")
+                return JsonResponse({'error': 'Failed to verify HMAC authentication'})
+
             
             return JsonResponse({'data': email.serialize()})
         
@@ -169,10 +170,16 @@ def split_body_ayu(body):
 
 
 class BodyPayload:
-    def __init__(self, body: str, public_key: str, key_fpr: str):
-        self.body = body
-        self.public_key = public_key
-        self.key_fpr = key_fpr
+    def __init__(self, payload: dict):
+        # Ensure payload contains necessary keys
+        if 'body' not in payload or 'sender_public_key' not in payload or 'recipient_key_fpr' not in payload or 'hmac_key' not in payload:
+            raise ValueError("Missing keys in payload")
+        
+        self.body = payload.get('body')
+        self.sender_public_key = payload.get('sender_public_key')
+        self.recipient_key_fpr = payload.get('recipient_key_fpr')
+        self.hmac_key = payload.get('hmac_key')
+
 
 def extract_body_payload(body) -> BodyPayload:
     split_body = split_body_ayu(body)
@@ -196,16 +203,7 @@ def extract_body_payload(body) -> BodyPayload:
         print("Invalid JSON in PAYLOAD")
         return None
     
-    # Ensure payload_dict contains necessary keys
-    if 'body' not in payload_dict or 'public_key' not in payload_dict or 'key_fpr' not in payload_dict:
-        print("Missing keys in payload")
-        return None
-    
-    return BodyPayload(
-        body=payload_dict['body'],
-        public_key=payload_dict['public_key'],
-        key_fpr=payload_dict['key_fpr']
-    )
+    return BodyPayload(payload_dict)
     
 
 def extract_body_flag(body) -> dict:

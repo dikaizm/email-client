@@ -180,7 +180,6 @@ class Email(models.Model):
 
 
 class EmailHMAC(models.Model):
-    email = models.OneToOneField(Email, on_delete=models.CASCADE, related_name='hmac')
     hmac = models.TextField(db_index=True)
     secret_key = models.CharField(max_length=255, db_index=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -190,7 +189,6 @@ class EmailHMAC(models.Model):
 
     def serialize(self):
         return {
-            'email': self.email.id,
             'hmac': self.hmac,
             'secret_key': self.secret_key,
             'created': self.created.strftime('%b %d %Y, %I:%M %p')

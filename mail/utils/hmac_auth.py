@@ -4,8 +4,8 @@ import hashlib
 # Returns the HMAC of a message
 def generate_hmac(message, secret_key):
     calc_hmac = hmac.new(
-        secret_key.encode(),
-        message.encode(),
+        secret_key.encode('utf-8'),
+        message.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
     

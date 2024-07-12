@@ -3,7 +3,7 @@ from pgpy.errors import PGPError
 
 
 class PGPEncrypt:
-    def __init__(self, s_private_key, s_public_key, s_passphrase, r_private_key, r_public_key, r_passphrase):
+    def __init__(self, s_private_key='', s_public_key='', s_passphrase='', r_private_key='', r_public_key='', r_passphrase=''):
         self.s_private_key = s_private_key
         self.s_public_key = s_public_key
         self.s_passphrase = s_passphrase

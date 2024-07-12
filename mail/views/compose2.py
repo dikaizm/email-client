@@ -1,5 +1,8 @@
 import base64
 import json
+import os
+import secrets
+from django.conf import settings
 from django.http import JsonResponse
 from urllib import parse
 
@@ -7,8 +10,9 @@ import pgpy
 from pgpy.errors import PGPDecryptionError
 import requests
 
-from mail.models import Email, PGPKey, User
+from mail.models import Email, EmailHMAC, PGPKey, User
 from mail.services.gmail.index import GmailService
+from mail.utils.hmac_auth import generate_hmac
 from mail.utils.response import ServiceResponse
 from mail.services.auth_google import oauth_get_credentials
 from googleapiclient.discovery import build
@@ -195,6 +199,10 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
         r_passphrase=recipient_key.passphrase,
     )
     
+    # Generate random secret key
+    secret_key = secrets.token_hex(16)
+    hmac_body = generate_hmac(body, secret_key)
+    
     if encrypt and sign:
         # encrypt body
         print(f"Encrypting email body to {recipient.email}")
@@ -214,12 +222,21 @@ def encrypt_sign_body(sender: User, recipient: User, body: str, encrypt: bool, s
     if isinstance(new_body, ValueError):
         return ServiceResponse(success=False, error=str(new_body), status=400)
     
+    # Save hmac
+    try:
+        hmac = EmailHMAC.objects.create(
+            hmac=hmac_body,
+            secret_key=secret_key,
+        )
+    except Exception as e:
+        return ServiceResponse(success=False, error=f'Failed to save HMAC: {e}', status=500)
         
     # Convert to base64
     json_body = json.dumps({
         'body': new_body,
-        'public_key': sender_key.public_key,
-        'key_fpr': recipient_key.fingerprint
+        'sender_public_key': sender_key.public_key,
+        'recipient_key_fpr': recipient_key.fingerprint,
+        'hmac_key': f"{hmac.id}::{hmac.hmac}",
     })
     base64_body = base64.b64encode(json_body.encode()).decode()
     # Add text to indicate that the body is encrypted or signed
