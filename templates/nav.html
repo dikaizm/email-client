@@ -1,3 +1,5 @@
+{% load static %}
+
 <div class="container">
   <h2>{{ request.user.email }}</h2>
 
@@ -25,7 +27,7 @@
         <i class="fas fa-folder-open"></i> Archived
       </button> -->
 
-      <a href="{% url 'security' %}" class="btn btn-sm btn-outline-info" id="sent">
+      <a href="{% url 'security' %}" class="btn btn-sm btn-outline-info" id="security">
         <i class="fas fa-shield-alt"></i> Security
       </a>
     </div>
@@ -38,3 +40,7 @@
   </div>
   <hr />
 </div>
+
+{% block script %}
+<script type="module" src='{% static "js/nav.js" %}'></script>
+{% endblock %}
