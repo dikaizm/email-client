@@ -22,7 +22,7 @@ def refresh_emails(request, label):
     
     query_params = {
         "newer_than": (2, "day"),
-        "unread": True,
+        # "unread": True,
         "labels": [[label]]
     }
     
