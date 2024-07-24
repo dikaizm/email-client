@@ -182,7 +182,8 @@ def generate_key(request):
         # Upload public key to keyserver
         vks_openpgp = vks_upload_key(user.email, str(key.pubkey))
         if not vks_openpgp.success:
-            return JsonResponse({'error': vks_openpgp.error}, status=400)
+            logger.error(f'Failed to upload key to keyserver: {vks_openpgp.error}')
+            # return JsonResponse({'error': vks_openpgp.error}, status=400)
         
         try:
             pgp_key = PGPKey.objects.create(
